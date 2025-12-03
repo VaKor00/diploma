@@ -1,0 +1,21 @@
+.carousel-indicators {
+    top: auto; /* Или какое-то значение для вертикального позиционирования */
+    bottom: 20px; /* Отрегулируйте значение, чтобы расположить индикаторы по вертикали */
+    z-index: 3;
+}
+
+.carousel-indicators [data-bs-target] {
+    width: 20px;  /* Ширина индикатора */
+    height: 20px; /* Высота индикатора */
+    background-color: rgba(255, 255, 255, 0); /* Цвет и прозрачность */
+    border: 2px solid #E0E0E0;
+    margin: 0 5px; /* Отступы между индикаторами */
+}
+
+.carousel-indicators .active {
+    background-color: #242424; /* Цвет активного индикатора */
+}
+
+.carousel-indicators .hover {
+    background-color: #D7B600; /* Цвет активного индикатора */
+}

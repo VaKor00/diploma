@@ -1,0 +1,77 @@
+@font-face {
+  font-family: 'TT Supermolot Neue Trial Expanded DemiBold';
+  src: local('fonts'), url('fonts/TT Supermolot Neue Trial Expanded DemiBold.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'TT Supermolot Neue Trial Medium';
+  src: local('fonts'), url('fonts/TT Supermolot Neue Trial Medium.ttf') format('truetype');
+}
+
+
+button
+{
+  border-radius: 0 !important;
+}
+
+
+main { margin: 0;
+    min-height: 100vh; /* Минимальная высота равна высоте вьюпорта */ }
+
+header {
+  position: relative; /*  Делаем header позиционированным предком */
+}
+
+/* Стили для малых экранов (мобильные) */
+@media (max-width: 991.98px) { /* Bootstrap breakpoint для md и меньше */
+  .navbar-collapse {
+      position: absolute; /* Или fixed, если нужно зафиксировать меню */
+      top: 100%; /* Размещаем меню сразу под шапкой */
+      right: 0;    /* Прижимаем к левому краю */
+      width: auto;  /* Занимаем всю ширину шапки */
+      background-color: #242424; /* Темный полупрозрачный фон */
+      z-index: 1000; /*  Убеждаемся, что меню поверх остальных элементов */
+      padding: 10px 15px;
+      text-align: right;
+  }
+}
+
+/* Стили для больших экранов */
+@media (min-width: 992px) { /* Bootstrap breakpoint для lg и больше */
+  .navbar-collapse {
+    position: static !important; /* Возвращаем к стандартному позиционированию */
+    background-color: transparent !important; /* Убираем фон */
+  }
+  .navbar-nav {
+    flex-direction: row !important; /* Отображаем элементы в строку */
+    justify-content: end; /* Выравниваем по правому краю */
+  }
+  .navbar-nav .nav-item {
+    margin-left: 1rem; /* Добавляем отступы между элементами */
+  }
+}
+
+.custom-right-align {
+  text-align: right;
+}
+
+/* Дополнительно: Анимация появления (по желанию) */
+.collapsing {
+  transition: height 0.3s ease; /*  Плавное изменение высоты */
+}
+
+/* li:hover {
+  color: #DEBD00;
+} */
+
+.nav-link {
+          color: #E0E0E0 !important; /* Исходный цвет текста */ 
+        }
+
+.nav-link:hover {
+  color: #DEBD00 !important; /* Цвет текста при наведении (например, оранжевый) */
+}
+
+.nav-link:active {
+  color: #DEBD00 !important; /* Цвет текста при нажатии */
+}
