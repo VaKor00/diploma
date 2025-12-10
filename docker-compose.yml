@@ -1,14 +1,22 @@
-version: "3.9"
+version: '3.8'
 
 services:
   frontend:
     build:
       context: ./car_dealership
-      dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "5173:5173" # Пробрасываем порт для Vite Dev Server
+    command: yarn dev
+    volumes:
+      - ./car_dealership:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      # Если нужно, укажите переменные окружения для React (например, API_BASE_URL)
+      - REACT_APP_API_URL=http://backend:8000/api
     depends_on:
       - backend
+      - db
     networks:
       - app-network
 
@@ -16,32 +24,50 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/var/www/html
+      - ./backend/public/build:/var/www/html/public/build
+    environment:
+      - APP_DEBUG=true
+      - APP_URL=http://localhost:8000
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3308
+      - DB_DATABASE=cardealership
+      - DB_USERNAME=root
+      - DB_PASSWORD=123456
+      - VITE_APP_URL=http://localhost:5173
+    command: php artisan serve --host=0.0.0.0 --port=8000
     networks:
       - app-network
-    depends_on:
-      - db
-    environment:
-      DB_CONNECTION: mysql
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
 
   db:
     image: mysql:8.0
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}      
     ports:
-      - "8000:3306"
+      - "3308:3306"
+    environment:
+      MYSQL_DATABASE: cardealership
+      MYSQL_ROOT_PASSWORD: 123456
+    networks:
+      - app-network
+
+  adminer:
+    image: adminer:4.8.1
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: mysql
+      ADMINER_DEFAULT_USER: root
+      ADMINER_DEFAULT_DB: cardealership
+      ADMINER_DESIGN: dracula
+    networks:
+      - app-network
+    depends_on:
+      - db    
 
 networks:
   app-network:
     driver: bridge
+

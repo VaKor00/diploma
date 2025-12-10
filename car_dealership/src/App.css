@@ -75,3 +75,13 @@ header {
 .nav-link:active {
   color: #DEBD00 !important; /* Цвет текста при нажатии */
 }
+
+.content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 1.0s ease;
+}
+
+.content.open {
+  max-height: 500px; /* или больше, в зависимости от контента */
+}

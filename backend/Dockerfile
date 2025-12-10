@@ -1,19 +1,21 @@
-FROM php:8.1-fpm-alpine
+FROM php:8.4-fpm-alpine
 
 WORKDIR /var/www/html
 
-# Указываем mirror (опционально)
-#RUN echo "http://dl-cdn.alpinelinux.org/alpine/v3.18/main" > /etc/apk/repositories
-#RUN echo "http://dl-cdn.alpinelinux.org/alpine/v3.18/community" >> /etc/apk/repositories
+RUN apk --no-cache add \
+        git \
+        zip \
+        unzip \
+        curl
 
-# Проверяем DNS (для отладки)
-RUN ping -c 3 google.com
+RUN docker-php-ext-install pdo_mysql
 
-# Устанавливаем расширения PHP
-RUN docker-php-ext-install pdo pdo_mysql
-
-# Копируем Composer из официального образа
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
-# Запускаем PHP-FPM
-CMD ["php-fpm"]
+COPY . .
+
+RUN composer install --no-interaction --optimize-autoloader
+
+EXPOSE 8000
+
+CMD ["php", "artisan", "serve", "--host", "0.0.0.0", "--port", "8000"]
