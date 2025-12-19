@@ -1,0 +1,177 @@
+@font-face {
+  font-family: 'TT Supermolot Neue Trial Expanded DemiBold';
+  src: local('fonts'), url('fonts/TT Supermolot Neue Trial Expanded DemiBold.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'TT Supermolot Neue Trial Medium';
+  src: local('fonts'), url('fonts/TT Supermolot Neue Trial Medium.ttf') format('truetype');
+}
+
+
+button
+{
+  border-radius: 0 !important;
+}
+
+
+main { margin: 0;
+    min-height: 100vh; /* Минимальная высота равна высоте вьюпорта */ }
+
+header {
+  position: relative; /*  Делаем header позиционированным предком */
+}
+
+/* Стили для малых экранов (мобильные) */
+@media (max-width: 991.98px) { /* Bootstrap breakpoint для md и меньше */
+  .navbar-collapse {
+      position: absolute; /* Или fixed, если нужно зафиксировать меню */
+      top: 100%; /* Размещаем меню сразу под шапкой */
+      right: 0;    /* Прижимаем к левому краю */
+      width: auto;  /* Занимаем всю ширину шапки */
+      background-color: #242424; /* Темный полупрозрачный фон */
+      z-index: 1000; /*  Убеждаемся, что меню поверх остальных элементов */
+      padding: 10px 15px;
+      text-align: right;
+  }
+}
+
+/* Стили для больших экранов */
+@media (min-width: 992px) { /* Bootstrap breakpoint для lg и больше */
+  .navbar-collapse {
+    position: static !important; /* Возвращаем к стандартному позиционированию */
+    background-color: transparent !important; /* Убираем фон */
+  }
+  .navbar-nav {
+    flex-direction: row !important; /* Отображаем элементы в строку */
+    justify-content: end; /* Выравниваем по правому краю */
+  }
+  .navbar-nav .nav-item {
+    margin-left: 1rem; /* Добавляем отступы между элементами */
+  }
+}
+
+.custom-right-align {
+  text-align: right;
+}
+
+/* Дополнительно: Анимация появления (по желанию) */
+.collapsing {
+  transition: height 0.3s ease; /*  Плавное изменение высоты */
+}
+
+/* li:hover {
+  color: #DEBD00;
+} */
+
+.nav-link {
+          color: #E0E0E0 !important; /* Исходный цвет текста */ 
+        }
+
+.nav-link:hover {
+  color: #DEBD00 !important; /* Цвет текста при наведении (например, оранжевый) */
+}
+
+.nav-link:active {
+  color: #DEBD00 !important; /* Цвет текста при нажатии */
+}
+
+.content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 1.5s ease;
+}
+
+.content.open {
+  max-height: 2000px; /* или больше, в зависимости от контента */
+}
+
+@media (max-width: 992px) {
+  .filter-block {
+    width: 75% !important;
+  }
+}
+
+.modal-slide-in {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.modal-slide-out {
+  opacity: 0;
+  transform: translateX(100%);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.multi-range-slider {
+  
+    border: none  !important; 
+    border-radius: 0  !important;
+    padding: 20px 10px  !important;
+    box-shadow: none  !important;
+    padding: 20px 0 !important;
+    flex-direction: column !important;
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    -khtml-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+
+}
+
+/* Для активных ползунков */
+.multi-range-slider .bar-inner {
+  background-color: #DEBD00 !important;
+  border: 1px solid #929292 !important;
+  height: 8px !important;
+  box-shadow: none !important;
+  border-radius: 0 0 0 0 !important;
+}
+
+/* Для неактивных ползунков */
+.multi-range-slider .bar-left {
+  background-color: hsl(0, 0%, 93%) !important;
+  border: 1px solid #929292 !important;
+  height: 8px !important;
+  box-shadow: none !important;
+  border-radius: 0 0 0 0 !important;
+}
+
+.multi-range-slider .bar-right {
+  background-color: hsl(0, 0%, 93%) !important;
+  border: 1px solid #929292 !important;
+  height: 8px !important;
+  box-shadow: none !important;
+  border-radius: 0 0 0 0 !important;
+}
+
+.multi-range-slider .thumb:before {
+    content: "" !important;
+    background-color: #929292 !important;
+    position: absolute !important;
+    width: 10px !important;
+    height: 20px !important;
+    border: 1px solid #929292 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    z-index: 1 !important;
+    margin: -6px -8px !important;
+    cursor: pointer !important;
+}
+
+.multi-range-slider .thumb .caption * {
+	position: absolute !important;
+	min-width: 1px !important;
+	height: 1px !important;
+	font-size: 1% !important;
+	text-align: center !important;
+	line-height: 1px !important;
+	background-color: rgb(255, 255, 255) !important;
+	border-radius: 0 !important;
+	color: white !important;
+	box-shadow: none !important;
+	padding: 0px 5px !important;
+	white-space: nowrap !important;
+}

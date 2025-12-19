@@ -8,7 +8,8 @@ class Dealers extends Model
 {
     protected $table = 'Dealers';
 
-    protected $fillable = ['id', 'city', 'city_name', 'street', 'home', 'name', 'open', 'closed', 'timezone', 'phone', 'coord_x', 'coord_y'];
+    protected $fillable = ['id', 'city', 'city_name', 'street', 'home', 'name', 'open', 
+                           'closed', 'timezone', 'phone', 'coord_x', 'coord_y'];
 
     public function getOpenAttribute($value)
     {

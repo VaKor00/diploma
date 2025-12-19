@@ -15,3 +15,19 @@ Route::get('/models', function () {
 Route::get('/modelcar/{id}', function () {
     return Inertia::render('Modelcar');
 });
+
+Route::get('/carstock', function () {
+    return Inertia::render('Carstock');
+});
+
+Route::get('/carinfo/{id}', function () {
+    return Inertia::render('Carinfo');
+});
+
+Route::get('/dealer/{id}', function () {
+    return Inertia::render('Dealer');
+});
+
+Route::get('/credit', function () {
+    return Inertia::render('Credit');
+});

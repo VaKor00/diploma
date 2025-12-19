@@ -10,9 +10,30 @@ use App\Models\Models;
 use App\Models\City;
 use App\Models\Dealers;
 use App\Models\Condition;
+use App\Models\Complectation;
+use App\Models\Cars;
+use App\Models\Colors;
+use App\Models\Banks;
+use Illuminate\Support\Facades\File;
 
 class ProjectController extends Controller
 {
+
+    public function files()
+    {
+        // Путь к папке с файлами
+        $directory = public_path('img/cars');
+
+        // Получаем список файлов
+        $files = File::files($directory);
+
+        // Формируем массив путей или имен файлов
+        $fileNames = array_map(function ($file) {
+            return 'img/cars/' . $file->getFilename();
+        }, $files);
+
+        return response()->json($fileNames);
+    }
 
     public function carousel()
     {
@@ -55,9 +76,55 @@ class ProjectController extends Controller
         return response()->json($items);
     }
 
+    public function dealerID($id)
+    {
+        $dlr = Dealers::find($id);
+        if (!$dlr) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+        return response()->json($dlr);
+    }
+
     public function condition()
     {
         $items = Condition::all();
+        
+        return response()->json($items);
+    }
+
+    public function complectation()
+    {
+        $items = Complectation::all();
+        
+        return response()->json($items);
+    }
+
+    public function cars()
+    {
+        $items = Cars::all();
+        
+        return response()->json($items);
+    }
+
+    public function showCar($id)
+    {
+        $car = Cars::find($id);
+        if (!$car) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+        return response()->json($car);
+    }
+
+    public function colors()
+    {
+        $items = Colors::all();
+        
+        return response()->json($items);
+    }
+
+    public function banks()
+    {
+        $items = Banks::all();
         
         return response()->json($items);
     }
