@@ -10,4 +10,5 @@ class Colors extends Model
 
     protected $fillable = ['id', 'color_name', 'color_code'];
 
+    public $timestamps = false;
 }

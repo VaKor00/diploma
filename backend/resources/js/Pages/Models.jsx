@@ -15,12 +15,59 @@ const buttons = {fontFamily: "TT Supermolot Neue Trial Medium", fontSize: "22px"
 
 import { Head } from '@inertiajs/react';
 import { useState, useEffect  } from 'react';
+import { usePage } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 
 const descst = {fontFamily: "TT Supermolot Neue Trial Medium"}   
 
 const h1 = {fontFamily: "TT Supermolot Neue Trial Medium", fontSize: "40px"}
 
 function Models() {
+
+  const { props } = usePage();
+    const user = props.auth;
+  
+    const renderAuthLink = () => {
+      if (!user) {
+        // не авторизован
+        return (
+          <Link className="nav-link" href="/autorization">
+            Вход
+          </Link>
+        );
+      }
+  
+      if (user.type === 0) {
+        return (
+          <Link className="nav-link" href="/editor">
+            Настройки
+          </Link>
+        );
+      }
+  
+      if (user.type === 1) {
+        return (
+          <Link className="nav-link" href="/dealerpanel">
+            Дилер
+          </Link>
+        );
+      }
+  
+      if (user.type === 2) {
+        return (
+          <Link className="nav-link" href="/profile">
+            Профиль
+          </Link>
+        );
+      }
+  
+      // дефолт на всякий случай
+      return (
+        <Link className="nav-link" href="/autorization">
+          Вход
+        </Link>
+      );
+    };
 
   const [items, setItems] = useState([]);
           
@@ -62,20 +109,18 @@ function Models() {
                     Модельный ряд
                   </a>
                 </li>
-                <li className="nav-item">
-                  <a className="nav-link" href="#">
+               <li className="nav-item">
+                  <Link className="nav-link" href="/carstock">
                     Авто в наличии
-                  </a>
+                  </Link>
                 </li>
                 <li className="nav-item">
-                  <a className="nav-link" href="#">
+                  <Link className="nav-link" href="/credit">
                     Автокредит
-                  </a>
+                  </Link>
                 </li>
                 <li className="nav-item">
-                  <a className="nav-link" href="#">
-                    Вход {/* в зависимости от авторизации будет меняться */}
-                  </a>
+                    {renderAuthLink()}
                 </li>
             </ul>
           </div>

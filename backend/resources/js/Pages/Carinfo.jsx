@@ -24,16 +24,52 @@ const h1 = {fontFamily: "TT Supermolot Neue Trial Medium", fontSize: "40px"}
 
 //изображение
 
-const images = import.meta.glob('../img/cars/*.{jpg,jpeg,png}', { eager: true });
-
-const imageMap = Object.fromEntries(
-  Object.entries(images).map(([key, value]) => {
-    const filename = key.split('/').pop().toLowerCase(); // получаем имя файла
-    return [filename, value.default]; // создаем пару ключ-значение
-  })
-);
-
 function Carinfo() {
+
+    const { props } = usePage();
+    const user = props.auth;
+  
+    const renderAuthLink = () => {
+      if (!user) {
+        // не авторизован
+        return (
+          <Link className="nav-link" href="/autorization">
+            Вход
+          </Link>
+        );
+      }
+  
+      if (user.type === 0) {
+        return (
+          <Link className="nav-link" href="/editor">
+            Настройки
+          </Link>
+        );
+      }
+  
+      if (user.type === 1) {
+        return (
+          <Link className="nav-link" href="/dealerpanel">
+            Дилер
+          </Link>
+        );
+      }
+  
+      if (user.type === 2) {
+        return (
+          <Link className="nav-link" href="/profile">
+            Профиль
+          </Link>
+        );
+      }
+  
+      // дефолт на всякий случай
+      return (
+        <Link className="nav-link" href="/autorization">
+          Вход
+        </Link>
+      );
+    };
   
   const { url } = usePage();
 
@@ -112,23 +148,15 @@ function Carinfo() {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   }
 
-  // изображения
 
-  const imgName1 = carData.img_1.split('/').pop().toLowerCase();
-  const imgName2 = carData.img_2.split('/').pop().toLowerCase();
-  const imgName3 = carData.img_3.split('/').pop().toLowerCase();
-  const imgName4 = carData.img_4.split('/').pop().toLowerCase();
-  const imgName5 = carData.img_5.split('/').pop().toLowerCase();
-
-  
   function ImageGallery() {
 
   const images = [
-    imageMap[imgName1],
-    imageMap[imgName2],
-    imageMap[imgName3],
-    imageMap[imgName4],
-    imageMap[imgName5],
+    carData.img_1,
+    carData.img_2,
+    carData.img_3,
+    carData.img_4,
+    carData.img_5
   ].filter(Boolean); 
 
   const [selectedImage, setSelectedImage] = useState(images[0]); 
@@ -298,9 +326,15 @@ function Carinfo() {
 
     return (
       <>
-        <a style={buttons} type="button" onClick={handleShow}  className="w-100 btn btn-sm btn-dark rounded-0">
+      {(carData.status == 0) ?
+              <> 
+                <a style={buttons} type="button" onClick={handleShow}  className="w-100 btn btn-sm btn-dark rounded-0">
                      Забронировать
         </a>
+              </>
+              :
+              <></>
+      }
 
         <Modal show={show} onHide={handleClose} centered>
           <Modal.Header closeButton>
@@ -406,9 +440,7 @@ function Carinfo() {
                   </Link>
                 </li>
                 <li className="nav-item">
-                  <Link className="nav-link" href="#">
-                    Вход {/* в зависимости от авторизации будет меняться */}
-                  </Link>
+                    {renderAuthLink()}
                 </li>
             </ul>
           </div>
@@ -486,7 +518,7 @@ function Carinfo() {
               <br></br>
               <p style={h1}>{numberWithSpaces(carData.price)} ₽</p>
               <br></br>
-              <ShowModal vin={carData.VIN} />
+                <ShowModal vin={carData.VIN} />
             </div>
           </div>
         </div>

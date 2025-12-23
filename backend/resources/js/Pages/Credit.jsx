@@ -26,6 +26,51 @@ const descst = {fontFamily: "TT Supermolot Neue Trial Medium"}
 
 function Credit() {
 
+    const { props } = usePage();
+    const user = props.auth;
+
+    const renderAuthLink = () => {
+    if (!user) {
+      // не авторизован
+      return (
+        <Link className="nav-link" href="/autorization">
+          Вход
+        </Link>
+      );
+    }
+
+    if (user.type === 0) {
+      return (
+        <Link className="nav-link" href="/editor">
+          Настройки
+        </Link>
+      );
+    }
+
+    if (user.type === 1) {
+      return (
+        <Link className="nav-link" href="/dealerpanel">
+          Дилер
+        </Link>
+      );
+    }
+
+    if (user.type === 2) {
+      return (
+        <Link className="nav-link" href="/profile">
+          Профиль
+        </Link>
+      );
+    }
+
+    // дефолт на всякий случай
+    return (
+      <Link className="nav-link" href="/autorization">
+        Вход
+      </Link>
+    );
+  };
+
   const [value, setValue] = useState(10);
   const [valueM, setValueM] = useState(12);
 
@@ -188,13 +233,13 @@ function Credit() {
             </button>
           <div className="collapse navbar-collapse justify-content-end" id="navbarNav" style={buttons}> {/* Обновленные стили */}
             <ul className="navbar-nav custom-right-align">
-              <li className="nav-item">
-                  <Link className="nav-link">
+                <li className="nav-item">
+                  <Link className="nav-link" href="/models">
                     Модельный ряд
                   </Link>
                 </li>
                 <li className="nav-item">
-                  <Link className="nav-link" href="#">
+                  <Link className="nav-link" href="/carstock">
                     Авто в наличии
                   </Link>
                 </li>
@@ -204,9 +249,7 @@ function Credit() {
                   </Link>
                 </li>
                 <li className="nav-item">
-                  <Link className="nav-link" href="#">
-                    Вход {/* в зависимости от авторизации будет меняться */}
-                  </Link>
+                    {renderAuthLink()}
                 </li>
             </ul>
           </div>

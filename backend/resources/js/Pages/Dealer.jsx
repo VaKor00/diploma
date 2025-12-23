@@ -3,12 +3,8 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import '../styles/App.scss';
 import "bootstrap-icons/font/bootstrap-icons.css";
 
-import { YMapComponentsProvider, YMapClusterer, YMap, YMapFeatureDataSource, YMapDefaultSchemeLayer, YMapLayer, YMapMarker } from 'ymap3-components';
-import { clusterByGrid} from '@yandex/ymaps3-clusterer';
+import { YMapComponentsProvider, YMap, YMapFeatureDataSource, YMapDefaultSchemeLayer } from 'ymap3-components';
 import custom from "../customization.json";
-import "../mapscircle.css"
-
-import markeri from "../assets/marker.svg";
 
 import logo from "../assets/logo.svg";
 import vk from "../img/socnetwork/vk.svg";
@@ -32,6 +28,51 @@ import Car from '../elements/models/car';
 
 function Dealer() {
 
+  const { props } = usePage();
+  const user = props.auth;
+
+  const renderAuthLink = () => {
+    if (!user) {
+      // не авторизован
+      return (
+        <Link className="nav-link" href="/autorization">
+          Вход
+        </Link>
+      );
+    }
+
+    if (user.type === 0) {
+      return (
+        <Link className="nav-link" href="/editor">
+          Настройки
+        </Link>
+      );
+    }
+
+    if (user.type === 1) {
+      return (
+        <Link className="nav-link" href="/dealerpanel">
+          Дилер
+        </Link>
+      );
+    }
+
+    if (user.type === 2) {
+      return (
+        <Link className="nav-link" href="/profile">
+          Профиль
+        </Link>
+      );
+    }
+
+    // дефолт на всякий случай
+    return (
+      <Link className="nav-link" href="/autorization">
+        Вход
+      </Link>
+    );
+  };
+
  const { url } = usePage();
 
   const segments = url.split('/');
@@ -52,7 +93,7 @@ function Dealer() {
   // Загружаем данные
     useEffect(() => {
     // Загружаем данные по id
-    fetch('/api/cars/')
+    fetch('/api/cars?status=0')
       .then(res => res.json())
       .then(data => {
           const filtered = data.filter(
@@ -102,25 +143,23 @@ function Dealer() {
             </button>
           <div className="collapse navbar-collapse justify-content-end" id="navbarNav" style={buttons}> {/* Обновленные стили */}
             <ul className="navbar-nav custom-right-align">
-              <li className="nav-item">
-                  <a className="nav-link" href="#">
+                <li className="nav-item">
+                  <Link className="nav-link" href="/models">
                     Модельный ряд
-                  </a>
+                  </Link>
                 </li>
                 <li className="nav-item">
-                  <a className="nav-link text-warning" href="#">
+                  <Link className="nav-link" href="/carstock">
                     Авто в наличии
-                  </a>
+                  </Link>
                 </li>
                 <li className="nav-item">
-                  <a className="nav-link" href="#">
+                  <Link className="nav-link" href="/credit">
                     Автокредит
-                  </a>
+                  </Link>
                 </li>
                 <li className="nav-item">
-                  <a className="nav-link" href="#">
-                    Вход {/* в зависимости от авторизации будет меняться */}
-                  </a>
+                    {renderAuthLink()}
                 </li>
             </ul>
           </div>
@@ -147,15 +186,13 @@ function Dealer() {
               </div>
               <div className="col-12 col-lg-7">
                 <div style={maps}>
-                        <YMapComponentsProvider apiKey={apiKey}>
-                            <YMap location={mapLocation} >
-                                <YMapDefaultSchemeLayer customization={custom}/>
-                                <YMapFeatureDataSource id="my-source" />
-                                {/* Отображение центра */}
-                                
-                            </YMap>
-                        </YMapComponentsProvider>
-                    </div>                
+                  <YMapComponentsProvider apiKey={apiKey}>
+                    <YMap location={mapLocation}>
+                      <YMapDefaultSchemeLayer customization={custom} />
+                      <YMapFeatureDataSource id="my-source" />
+                    </YMap>
+                  </YMapComponentsProvider>
+                </div>               
               </div>
             </div>
           </div>

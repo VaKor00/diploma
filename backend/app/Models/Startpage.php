@@ -8,5 +8,14 @@ class Startpage extends Model
 {
     protected $table = 'startpage';
 
-    protected $fillable = ['id', 'name', 'edit_content', 'desc', 'button_boot', 'button', 'link', 'img', 'priority'];
+    protected $fillable = [
+        'name',
+        'edit_content',
+        'desc',
+        'button_bool',
+        'button',
+        'link',
+        'img',
+        'priority',
+    ];
 }

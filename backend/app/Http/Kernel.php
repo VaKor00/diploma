@@ -59,7 +59,10 @@ protected $routeMiddleware = [
     'signed' =>\Illuminate\Routing\Middleware\ValidateSignature::class,
     'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
     'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
-    'inertia' => \App\Http\Middleware\HandleInertiaRequests::class, // &lt;--- И здесь, если вы используете 'inertia' как алиас
+    'inertia' => \App\Http\Middleware\HandleInertiaRequests::class,
+    'adminonly'  => \App\Http\Middleware\AdminOnly::class,
+    'dealeronly' => \App\Http\Middleware\DealerOnly::class,
+    'useronly' => \App\Http\Middleware\UserOnly::class,
 ];
 
 /**

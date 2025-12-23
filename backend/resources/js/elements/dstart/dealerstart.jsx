@@ -23,11 +23,11 @@ class DealerStart extends Component { render() {
 
     if (timezone >= 0)
         {
-            tz = -Math.abs(timezone) * 60
+            tz = -Math.abs(timezone) / 60
         }
     else if (timezone < 0)
         {
-            tz = Math.abs(timezone) * 60
+            tz = Math.abs(timezone) / 60
         }
     
     // время открытия и закрытия салона (01-01-2025 выбрано условно)

@@ -8,6 +8,21 @@ class Cars extends Model
 {
     protected $table = 'Cars';
 
-    protected $fillable = ['id', 'model_id', 'complectation_id', 'color_id', 'VIN', 'dealer_id', 'price'];
+    public $timestamps = false;
 
+    protected $fillable = [
+        'model_id',
+        'complectation_id',
+        'color_id',
+        'VIN',
+        'dealer_id',
+        'img_1',
+        'img_2',
+        'img_3',
+        'img_4',
+        'img_5',
+        'price',
+        'status',
+    ];
+    
 }

@@ -175,3 +175,17 @@ header {
 	padding: 0px 5px !important;
 	white-space: nowrap !important;
 }
+
+/* Общий стиль ссылок в сайдбаре */
+.sidebar-link {
+  color: #E0E0E0;
+  text-decoration: none;
+  cursor: pointer; /* для неактивных показываем, что кликабельны */
+}
+
+/* Активный пункт меню */
+.sidebar-link-active {
+  color: #DEBD00 !important;              /* нужный вам цвет */
+  cursor: default;          /* обычный курсор */
+  pointer-events: none;     /* опционально: отключить повторный клик */
+}

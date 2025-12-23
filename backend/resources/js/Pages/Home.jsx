@@ -3,22 +3,17 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import '../styles/App.scss';
 import "bootstrap-icons/font/bootstrap-icons.css";
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
+import React from 'react';
 import Carouse from '../elements/carouse';
 import Start from "../elements/start";
 import ConditionSt from "../elements/conditionst";
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { useState, useEffect  } from 'react';
 
 import logo from "../assets/logo.svg";
 import vk from "../img/socnetwork/vk.svg";
 import tg from "../img/socnetwork/tg.svg";
 import yt from "../img/socnetwork/yt.svg";
-
-const images = import.meta.glob('../img/startpage/*.{jpg,jpeg,png}', { eager: true });
-
-const imageMap = Object.fromEntries(
-  Object.entries(images).map(([key, value]) => [key.split('/').pop(), value.default])
-);
 
 import { Head } from '@inertiajs/react';
 
@@ -30,6 +25,52 @@ const buttons = {fontFamily: "TT Supermolot Neue Trial Medium", fontSize: "22px"
 const descst = {fontFamily: "TT Supermolot Neue Trial Medium"} 
 
 function Home() {
+
+  const { props } = usePage();
+  const user = props.auth;
+
+  const renderAuthLink = () => {
+    if (!user) {
+      // не авторизован
+      return (
+        <Link className="nav-link" href="/autorization">
+          Вход
+        </Link>
+      );
+    }
+
+    if (user.type === 0) {
+      return (
+        <Link className="nav-link" href="/editor">
+          Настройки
+        </Link>
+      );
+    }
+
+    if (user.type === 1) {
+      return (
+        <Link className="nav-link" href="/dealerpanel">
+          Дилер
+        </Link>
+      );
+    }
+
+    if (user.type === 2) {
+      return (
+        <Link className="nav-link" href="/profile">
+          Профиль
+        </Link>
+      );
+    }
+
+    // дефолт на всякий случай
+    return (
+      <Link className="nav-link" href="/autorization">
+        Вход
+      </Link>
+    );
+  };
+
   const [items1, setItems1] = useState([]);
   const [conditionstart, setItems2] = useState([]);
 
@@ -48,8 +89,7 @@ function Home() {
     fetch('/api/condition')
       .then(res => res.json())
       .then(data => {
-        const filteredData = data.filter(item => item.type === 1);
-        setItems2(filteredData);
+        setItems2(data);
       })
       .catch(console.error);
   }, []);
@@ -94,9 +134,7 @@ function Home() {
                   </Link>
                 </li>
                 <li className="nav-item">
-                  <Link className="nav-link" href="#">
-                    Вход {/* в зависимости от авторизации будет меняться */}
-                  </Link>
+                    {renderAuthLink()}
                 </li>
             </ul>
           </div>
@@ -114,7 +152,7 @@ function Home() {
           const imgKey = item.img ? item.img.split('/').pop() : null;
           return (
             <div key={item.id}>
-              <Start {...item} img={imgKey ? imageMap[imgKey] : undefined} />
+              <Start {...item} />
             </div>
           );
         })}

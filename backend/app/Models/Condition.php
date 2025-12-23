@@ -8,5 +8,5 @@ class Condition extends Model
 {
     protected $table = 'condition';
 
-    protected $fillable = ['id', 'condition', 'type'];
+    protected $fillable = ['id', 'condition'];
 }

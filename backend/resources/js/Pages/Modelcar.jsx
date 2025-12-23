@@ -41,6 +41,51 @@ const imageMap = Object.fromEntries(
 
 function Modelcar() {
 
+  const { props } = usePage();
+    const user = props.auth;
+  
+    const renderAuthLink = () => {
+      if (!user) {
+        // не авторизован
+        return (
+          <Link className="nav-link" href="/autorization">
+            Вход
+          </Link>
+        );
+      }
+  
+      if (user.type === 0) {
+        return (
+          <Link className="nav-link" href="/editor">
+            Настройки
+          </Link>
+        );
+      }
+  
+      if (user.type === 1) {
+        return (
+          <Link className="nav-link" href="/dealerpanel">
+            Дилер
+          </Link>
+        );
+      }
+  
+      if (user.type === 2) {
+        return (
+          <Link className="nav-link" href="/profile">
+            Профиль
+          </Link>
+        );
+      }
+  
+      // дефолт на всякий случай
+      return (
+        <Link className="nav-link" href="/autorization">
+          Вход
+        </Link>
+      );
+    };
+
  const { url } = usePage();
 
   const segments = url.split('/');
@@ -69,12 +114,6 @@ function Modelcar() {
     }, []);
 
   if (!modelData) return <div></div>;
-
-  const imgName = modelData.img.split('/').pop().toLowerCase();
-  const imgSrc = imageMap[imgName]; // путь к изображению
-
-  const imgName1 = modelData.salon_photo.split('/').pop().toLowerCase();
-  const imgSrc1 = imageMap[imgName1]; // путь к изображению
 
   const parsedSalon= JSON.parse(modelData.features);
 
@@ -118,9 +157,7 @@ function Modelcar() {
                   </Link>
                 </li>
                 <li className="nav-item">
-                  <a className="nav-link" href="#">
-                    Вход {/* в зависимости от авторизации будет меняться */}
-                  </a>
+                    {renderAuthLink()}
                 </li>
             </ul>
           </div>
@@ -128,8 +165,8 @@ function Modelcar() {
       </div>
     </header>
     <div>
-      <img style={black} src={imgSrc} className="d-none d-lg-block w-100" alt={`carid ${id}`} />
-      <img style={blackS} src={imgSrc} className="w-100 d-sm-block d-lg-none" alt={`carid ${id}`} />
+      <img style={black} src={modelData.img} className="d-none d-lg-block w-100" alt={`carid ${id}`} />
+      <img style={blackS} src={modelData.img} className="w-100 d-sm-block d-lg-none" alt={`carid ${id}`} />
         <div style={startTextD} className="position-absolute top-0 start-0 w-100 d-none d-lg-flex flex-column justify-content-between">
           <div class="container text-center text-md-start">
             <h1 className="text-light" style={{textAlign: "center", fontSize: "72px"}}> PHOENIX {modelData.model_name} </h1>
@@ -195,7 +232,7 @@ function Modelcar() {
       <h1 style={h1} class="text-center">Салон {modelData.model_name}</h1>
       <br></br>
       <Salon
-        src={"/img/cars/" + imgName1}
+        src={modelData.salon_photo}
         points={parsedSalon}
       />
       </div>

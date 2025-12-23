@@ -14,6 +14,7 @@ const buttons = {fontFamily: "TT Supermolot Neue Trial Medium", fontSize: "22px"
 
 import { Link } from '@inertiajs/react';
 import { Head } from '@inertiajs/react';
+import { usePage } from '@inertiajs/react';
 import { useState, useEffect  } from 'react';
 
 import MultiRangeSlider from "multi-range-slider-react";
@@ -46,6 +47,51 @@ function useLoadMore(initialCount = 8, increment = 8) {
 
 function Carstock() {
 
+  const { props } = usePage();
+    const user = props.auth;
+
+      const renderAuthLink = () => {
+    if (!user) {
+      // не авторизован
+      return (
+        <Link className="nav-link" href="/autorization">
+          Вход
+        </Link>
+      );
+    }
+
+    if (user.type === 0) {
+      return (
+        <Link className="nav-link" href="/editor">
+          Настройки
+        </Link>
+      );
+    }
+
+    if (user.type === 1) {
+      return (
+        <Link className="nav-link" href="/dealerpanel">
+          Дилер
+        </Link>
+      );
+    }
+
+    if (user.type === 2) {
+      return (
+        <Link className="nav-link" href="/profile">
+          Профиль
+        </Link>
+      );
+    }
+
+    // дефолт на всякий случай
+    return (
+      <Link className="nav-link" href="/autorization">
+        Вход
+      </Link>
+    );
+  };
+
   const [items, setItems] = useState([]);
   const [itemsToShow, setItemsToShow] = useState([]);
   const [loading, setLoading] = useState(true); // изначально показываем загрузчик
@@ -69,7 +115,7 @@ function Carstock() {
   // Загружаем данные
   useEffect(() => {
     console.log('useEffect вызван')
-    fetch('/api/cars')
+    fetch('/api/cars?status=0')
       .then(res => res.json())
       .then(data => {
         setItems(data);
@@ -104,19 +150,9 @@ function Carstock() {
   }, [readyCount, totalToRender]);
 
   const handleCarReady = (id) => {
-    console.log('Car полностью вставлена:', id);
     setReadyCount(prev => prev + 1);
   };
 
-  // if (loading) {
-  //   return (
-  //     <div style={{ textAlign: 'center', padding: '50px' }}>
-  //       <div className="spinner-border" role="status">
-  //         <span className="visually-hidden">Загрузка...</span>
-  //       </div>
-  //     </div>
-  //   );
-  // }
 
   // модальное окно с фильтром
 
@@ -424,7 +460,7 @@ const applyFilters = () => {
 
 
     // Далее фильтруем машины по этим ID
-    fetch('/api/cars/')
+    fetch('/api/cars?status=0')
       .then(res => res.json())
       .then(data => {
         let filteredData = data;
@@ -499,14 +535,12 @@ const applyFilters = () => {
                   </a>
                 </li>
                 <li className="nav-item">
-                  <a className="nav-link" href="#">
-                    Автокредит
-                  </a>
+                  <Link className="nav-link" href="/credit">
+                                      Автокредит
+                                    </Link>
                 </li>
                 <li className="nav-item">
-                  <a className="nav-link" href="#">
-                    Вход {/* в зависимости от авторизации будет меняться */}
-                  </a>
+                    {renderAuthLink()}
                 </li>
             </ul>
           </div>

@@ -5,6 +5,15 @@ import './App.css'
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 
+// вытаскиваем токен из meta
+const token = document
+  .querySelector('meta[name="csrf-token"]')
+  ?.getAttribute('content');
+
+if (token) {
+  axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
+}
+
 function App() {
   const [count, setCount] = useState(0)
 

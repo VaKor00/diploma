@@ -163,9 +163,11 @@ function DStart() {
 
     // useEffect для фильтрации дилеров при изменении выбранного города
     useEffect(() => {
-        const filtered = startdealers.filter(dealer => Number(dealer.city) === Number(selectedCityId));
+        const filtered = startdealers.filter(
+            dealer => Number(dealer.city) === Number(selectedCityId)
+        );
         setFilteredDealers(filtered);
-    }, [selectedCityId]);
+        }, [selectedCityId, startdealers]);
 
      // useEffect для установки координат при загрузке компонента
      useEffect(() => {
@@ -177,7 +179,7 @@ function DStart() {
         setSelectedDealerData(dealer);         // Для хранения данных выбранного
 
     // Получение координат дилерского центра из API Яндекс.Карт
-    const address = `Россия, ${dealer.city_name}, ул. ${dealer.street}, дом ${dealer.home}`;
+    const address = `Россия, ${dealer.city_name}, ${dealer.street}, дом ${dealer.home}`;
     fetch(`https://geocode-maps.yandex.ru/v1/?apikey=${apiKey}&geocode=${address}&format=json`)
             .then((res) => res.json())
             .then((data) => {

@@ -1,5 +1,7 @@
 <?php
 
+file_put_contents(__DIR__.'/../storage/logs/test.log', date('c')." index.php hit\n", FILE_APPEND);
+
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 

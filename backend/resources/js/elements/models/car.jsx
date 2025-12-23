@@ -15,7 +15,7 @@ function numberWithSpaces(x) {
 }
 
 function Car({onReady, ...props}) {
-  const { id, model_id, complectation_id, dealer_id, img_1} = props;
+  const { id, model_id, complectation_id, dealer_id, img_1, price} = props;
 
   const [model, setItems2] = useState([]);
   const [complectation, setItems3] = useState([]);
@@ -59,8 +59,6 @@ function Car({onReady, ...props}) {
       .catch(console.error);
   }, [dealer_id]);
 
-  const pr = complectation[0]?.price;
-
   const hasCalledRef = useRef(false);
 
   const handleImageLoad = () => {
@@ -75,7 +73,7 @@ function Car({onReady, ...props}) {
     <div onLoad={handleImageLoad} className="d-flex flex-column h-100 p-3" style={{ minHeight: '350px' }}>
       {/* Верхняя часть: изображение */}
       <div style={{ maxHeight: '300px' }}>
-        <img src={`/${img_1}`} alt={id} className="w-100" style={{ objectFit: 'cover', height: '100%' }} />
+        <img src={`${img_1}`} alt={id} className="w-100" style={{ objectFit: 'cover', height: '100%' }} />
       </div>
       {/* Текст и блок с ценой + кнопкой */}
       <div className="d-flex flex-column flex-fill pt-3">
@@ -91,7 +89,7 @@ function Car({onReady, ...props}) {
         </div>
         <div className="mt-auto w-100 d-flex flex-column align-items-center">
           <br />
-          <p style={descst} className="mb-2">от {pr !== undefined ? `${numberWithSpaces(pr)}` : ''} ₽</p>
+          <p style={descst} className="mb-2">{numberWithSpaces(price)} ₽</p>
           <a style={buttons} className="w-100 btn btn-sm btn-dark rounded-0" href={`/carinfo/${id}`}>
             Подробнее <i className="bi bi-chevron-right"></i>
           </a>
