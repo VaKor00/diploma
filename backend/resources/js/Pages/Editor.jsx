@@ -72,7 +72,7 @@ function Editor() {
 
       <div className="row g-0" style={{ minHeight: '100vh' }}>
         <div
-          className="col-3 bg-dark text-light position-sticky d-flex flex-column"
+          className="col-2 bg-dark text-light position-sticky d-flex flex-column"
           style={{ top: 0, height: '100vh' }}
         >
           <div>
@@ -186,7 +186,7 @@ function Editor() {
                 className="btn btn-outline-light w-100 d-flex align-items-center justify-content-center"
                 style={buttons}
               >
-                Перейти на главную
+                На главную
               </button>
               </Link>
             </div>
@@ -204,7 +204,7 @@ function Editor() {
           </div>
         </div>
 
-        <div className="col-9">
+        <div className="col-10">
           <br />
           <h1 style={h1} className="text-center">
             {activePage === 'home' && 'Главная страница'}

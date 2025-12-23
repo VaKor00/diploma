@@ -18,7 +18,7 @@ class ClientController extends Controller
 
         $client = Clients::create($validated);
 
-        $updated = DB::table('Cars')
+        $updated = DB::table('cars')
         ->where('vin', $validated['vin_car'])   // или другое поле VIN в таблице cars
         ->where('status', 0)                   // только свободные
         ->update(['status' => 1]);             // ставим "забронирована"

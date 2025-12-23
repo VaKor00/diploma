@@ -27,7 +27,7 @@ class Complectation extends Component {
     const { id , complectation_name, price, engine, track_fuel, city_fuel, 
             transmission, brakes, wheel_drive, weight, headlights, hatch,
             tinting, airbag, heated_front_seats, heated_rear_seats, salon,
-            seats, conditions, Cruise_control, apple_Carplay_android_auto,
+            seats, conditions, cruise_control, apple_carplay_android_auto,
             audio_speakers, usb} = this.props;
    
     const { isOpen } = this.state;
@@ -138,7 +138,7 @@ class Complectation extends Component {
                 <p className="text-secondary"><span>{{hatch} == 1 ? "Отсутствует" : "Присутстсвует"}</span></p>
 
                 <h3 className="text-dark">Круиз-контроль</h3>
-                <p className="text-secondary"><span>{{Cruise_control} == 1 ? "Отсутствует" : "Присутстсвует"}</span></p>
+                <p className="text-secondary"><span>{{cruise_control} == 1 ? "Отсутствует" : "Присутстсвует"}</span></p>
 
                 <h3 className="text-dark">Тонировка</h3>
                 <p className="text-secondary"><span>{tint}</span></p>
@@ -164,7 +164,7 @@ class Complectation extends Component {
                 <h2>Мультимедиа</h2>
 
                 <h3 className="text-dark">Aplle CarPlay и Android Auto</h3>
-                <p className="text-secondary"><span>{{apple_Carplay_android_auto} == 1 ? "Отсутствует" : "Присутстсвует"}</span></p>
+                <p className="text-secondary"><span>{{apple_carplay_android_auto} == 1 ? "Отсутствует" : "Присутстсвует"}</span></p>
 
                 <h3 className="text-dark">Количество аудиодинамиков</h3>
                 <p className="text-secondary"><span>{audio_speakers}</span></p>

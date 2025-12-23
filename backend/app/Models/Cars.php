@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Cars extends Model
 {
-    protected $table = 'Cars';
+    protected $table = 'cars';
 
     public $timestamps = false;
 
@@ -14,7 +14,7 @@ class Cars extends Model
         'model_id',
         'complectation_id',
         'color_id',
-        'VIN',
+        'vin',
         'dealer_id',
         'img_1',
         'img_2',

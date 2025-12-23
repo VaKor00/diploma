@@ -443,11 +443,11 @@ class ProjectController extends Controller
         ]);
 
         // сохраняем запись в БД
-        $id = DB::table('City')->insertGetId([
+        $id = DB::table('city')->insertGetId([
             'city'       => $data['city'],
         ]);
 
-        $slide = DB::table('City')->where('id', $id)->first();
+        $slide = DB::table('city')->where('id', $id)->first();
 
         return response()->json($slide, 201);
     }
@@ -479,7 +479,7 @@ class ProjectController extends Controller
         ]);
 
         // сохраняем запись в БД
-        $id = DB::table('Dealers')->insertGetId([
+        $id = DB::table('dealers')->insertGetId([
             'city'       => $data['city'],
             'city_name'       => $data['city_name'],
             'street'       => $data['street'],
@@ -501,7 +501,7 @@ class ProjectController extends Controller
 
     public function dealersUpdate(Request $request, $id)
     {
-        $slide = DB::table('Dealers')->where('id', $id)->first();
+        $slide = DB::table('dealers')->where('id', $id)->first();
         if (!$slide) {
             return response()->json(['message' => 'Дилер не найден'], 404);
         }
@@ -534,9 +534,9 @@ class ProjectController extends Controller
             'coord_y'   => $data['coord_y'],
         ];
 
-        DB::table('Dealers')->where('id', $id)->update($update);
+        DB::table('dealers')->where('id', $id)->update($update);
 
-        $updatedSlide = DB::table('Dealers')->where('id', $id)->first();
+        $updatedSlide = DB::table('dealers')->where('id', $id)->first();
 
         return response()->json($updatedSlide);
     }
@@ -600,7 +600,7 @@ class ProjectController extends Controller
         $imgPath1 = '/img/cars/' . $filename1;
 
         // сохраняем запись в БД
-        $id = DB::table('Models')->insertGetId([
+        $id = DB::table('models')->insertGetId([
             'model_name'       => $data['model_name'],
             'length' => $data['length'],
             'width' => $data['width'],
@@ -618,7 +618,7 @@ class ProjectController extends Controller
             'salon_photo' => $imgPath1,
         ]);
 
-        $slide = DB::table('Models')->where('id', $id)->first();
+        $slide = DB::table('models')->where('id', $id)->first();
 
         return response()->json($slide, 201);
     }
@@ -626,7 +626,7 @@ class ProjectController extends Controller
    public function modelUpdate(Request $request, $id)
     {
         // Проверяем, есть ли запись
-        $slide = DB::table('Models')->where('id', $id)->first();
+        $slide = DB::table('models')->where('id', $id)->first();
         if (!$slide) {
             return response()->json(['message' => 'Модель не найдена'], 404);
         }
@@ -685,12 +685,12 @@ class ProjectController extends Controller
         }
 
         // Выполняем обновление
-        $rows = DB::table('Models')->where('id', $id)->update($update);
+        $rows = DB::table('models')->where('id', $id)->update($update);
 
         // Можно залогировать, если нужно
         // \Log::info('modelUpdate rows updated', ['id' => $id, 'rows' => $rows]);
 
-        $updatedSlide = DB::table('Models')->where('id', $id)->first();
+        $updatedSlide = DB::table('models')->where('id', $id)->first();
         return response()->json($updatedSlide);
     }
 
@@ -727,13 +727,13 @@ class ProjectController extends Controller
         'salon'                      => ['required', 'string'],
         'seats'                      => ['required', 'string'],
         'conditions'                 => ['required', 'integer'],
-        'Cruise_control'             => ['required', 'integer'],
-        'apple_Carplay_android_auto' => ['required', 'integer'],
+        'cruise_control'             => ['required', 'integer'],
+        'apple_carplay_android_auto' => ['required', 'integer'],
         'audio_speakers'             => ['required', 'integer'],
         'usb'                        => ['required', 'integer'],
     ]);
 
-    $id = DB::table('Complectation')->insertGetId([
+    $id = DB::table('complectation')->insertGetId([
         'model_id'                   => $data['model_id'],
         'complectation_name'         => $data['complectation_name'],
         'price'                      => $data['price'],
@@ -753,14 +753,14 @@ class ProjectController extends Controller
         'salon'                      => $data['salon'],
         'seats'                      => $data['seats'],
         'conditions'                 => $data['conditions'],
-        'Cruise_control'             => $data['Cruise_control'],
-        'apple_Carplay_android_auto' => $data['apple_Carplay_android_auto'],
+        'cruise_control'             => $data['cruise_control'],
+        'apple_carplay_android_auto' => $data['apple_carplay_android_auto'],
         'audio_speakers'             => $data['audio_speakers'],
         'usb'                        => $data['usb'],
     ]);
 
     // 2. Считаем минимальную цену по этой модели
-    $minPrice = DB::table('Complectation')
+    $minPrice = DB::table('complectation')
         ->where('model_id', $data['model_id'])
         ->min('price');
 
@@ -770,7 +770,7 @@ class ProjectController extends Controller
         ->update(['min_price' => $minPrice]);
 
     // 4. Отдаём созданную комплектацию
-    $row = DB::table('Complectation')->where('id', $id)->first();
+    $row = DB::table('complectation')->where('id', $id)->first();
 
     // ВАЖНО: статус 201
     return response()->json($row, 201);
@@ -802,18 +802,18 @@ class ProjectController extends Controller
             'salon'                      => ['required', 'string'],
             'seats'                      => ['required', 'string'],
             'conditions'                 => ['required', 'integer'],
-            'Cruise_control'             => ['required', 'integer'],
-            'apple_Carplay_android_auto' => ['required', 'integer'],
+            'cruise_control'             => ['required', 'integer'],
+            'apple_carplay_android_auto' => ['required', 'integer'],
             'audio_speakers'             => ['required', 'integer'],
             'usb'                        => ['required', 'integer'],
         ]);
 
-        $row = DB::table('Complectation')->where('id', $id)->first();
+        $row = DB::table('complectation')->where('id', $id)->first();
         if (!$row) {
-            return response()->json(['message' => 'Complectation not found'], 404);
+            return response()->json(['message' => 'complectation not found'], 404);
         }
 
-        DB::table('Complectation')->where('id', $id)->update([
+        DB::table('complectation')->where('id', $id)->update([
             'model_id'                   => $data['model_id'],
             'complectation_name'         => $data['complectation_name'],
             'price'                      => $data['price'],
@@ -833,13 +833,13 @@ class ProjectController extends Controller
             'salon'                      => $data['salon'],
             'seats'                      => $data['seats'],
             'conditions'                 => $data['conditions'],
-            'Cruise_control'             => $data['Cruise_control'],
-            'apple_Carplay_android_auto' => $data['apple_Carplay_android_auto'],
+            'cruise_control'             => $data['cruise_control'],
+            'apple_carplay_android_auto' => $data['apple_carplay_android_auto'],
             'audio_speakers'             => $data['audio_speakers'],
             'usb'                        => $data['usb'],
         ]);
 
-        $minPrice = DB::table('Complectation')
+        $minPrice = DB::table('complectation')
             ->where('model_id', $data['model_id'])
             ->min('price');
 
@@ -847,7 +847,7 @@ class ProjectController extends Controller
             ->where('id', $data['model_id'])
             ->update(['min_price' => $minPrice]);
 
-        $updated = DB::table('Complectation')->where('id', $id)->first();
+        $updated = DB::table('complectation')->where('id', $id)->first();
 
         return response()->json($updated, 200);
     } catch (\Throwable $e) {
@@ -866,12 +866,12 @@ class ProjectController extends Controller
         $slide->delete();
 
         // Пересчитываем min_price для этой модели
-        $minPrice = DB::table('Complectation')
+        $minPrice = DB::table('complectation')
             ->where('model_id', $modelId)
             ->min('price'); // вернёт null, если комплектаций больше нет
 
         // Обновляем запись модели
-        DB::table('Models') 
+        DB::table('models') 
             ->where('id', $modelId)
             ->update(['min_price' => $minPrice]);
 
@@ -1049,7 +1049,7 @@ class ProjectController extends Controller
                 'model_id'         => ['required', 'integer'],
                 'complectation_id' => ['required', 'integer'],
                 'color_id'         => ['required', 'integer'],
-                'VIN'              => ['required', 'string', 'max:255'],
+                'vin'              => ['required', 'string', 'max:255'],
                 'dealer_id'        => ['required', 'integer'],
                 'price'            => ['required', 'integer'],
                 'img_1'            => ['required', 'image', 'max:5120'],
@@ -1077,7 +1077,7 @@ class ProjectController extends Controller
                 'model_id'         => $validated['model_id'],
                 'complectation_id' => $validated['complectation_id'],
                 'color_id'         => $validated['color_id'],
-                'VIN'              => $validated['VIN'],
+                'vin'              => $validated['vin'],
                 'dealer_id'        => $validated['dealer_id'],
                 'img_1'            => $paths['img_1'],
                 'img_2'            => $paths['img_2'],
@@ -1153,7 +1153,7 @@ class ProjectController extends Controller
             $vin = $client->vin_car;
 
             if ($vin) {
-                $car = Cars::where('VIN', $vin)->first();
+                $car = Cars::where('vin', $vin)->first();
 
                 if ($car) {
                     $car->status = 0;
@@ -1176,7 +1176,7 @@ class ProjectController extends Controller
 
             if ($vin) {
                 // 2. Находим машину по VIN
-                $car = Cars::where('VIN', $vin)->first();
+                $car = Cars::where('vin', $vin)->first();
 
                 if ($car) {
                     // 2.1. Меняем статус машины на 2 (продана)

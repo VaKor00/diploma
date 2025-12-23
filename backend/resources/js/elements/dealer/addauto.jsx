@@ -18,7 +18,7 @@ function AddAuto() {
     model_id: '',
     complectation_id: '',
     color_id: '',
-    VIN: '',
+    vin: '',
     price: '',
     status: 0,
   });
@@ -94,7 +94,7 @@ function AddAuto() {
         return;
       }
 
-      if (!form.model_id || !form.complectation_id || !form.color_id || !form.VIN || !form.price) {
+      if (!form.model_id || !form.complectation_id || !form.color_id || !form.vin || !form.price) {
         setErrors({ form: 'Заполните все обязательные поля.' });
         setLoading(false);
         return;
@@ -110,7 +110,7 @@ function AddAuto() {
       formData.append('model_id',         form.model_id);
       formData.append('complectation_id', form.complectation_id);
       formData.append('color_id',         form.color_id);
-      formData.append('VIN',              form.VIN);
+      formData.append('vin',              form.vin);
       formData.append('dealer_id',        dealerId);
       formData.append('price',            form.price);
       formData.append('status',           0);
@@ -140,7 +140,7 @@ function AddAuto() {
           model_id: '',
           complectation_id: '',
           color_id: '',
-          VIN: '',
+          vin: '',
           price: '',
           status: 0,
         });
@@ -236,9 +236,9 @@ function AddAuto() {
           <label className="form-label">VIN *</label>
           <input
             type="text"
-            name="VIN"
+            name="vin"
             className="form-control"
-            value={form.VIN}
+            value={form.vin}
             onChange={handleChange}
           />
         </div>

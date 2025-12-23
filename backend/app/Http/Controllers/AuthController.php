@@ -60,7 +60,7 @@ class AuthController extends Controller
         ]);
 
         // Проверяем, есть ли такой VIN в таблице Cars и статус = 2
-        $car = Cars::where('VIN', $validated['login'])
+        $car = Cars::where('vin', $validated['login'])
             ->where('status', 2)
             ->first();
 

@@ -87,8 +87,8 @@ function EditComplectation() {
     seats: 'Тканевые',
 
     conditions: 0,
-    Cruise_control: 0,
-    apple_Carplay_android_auto: 0,
+    cruise_control: 0,
+    apple_carplay_android_auto: 0,
 
     audio_speakers: 1,
     usb: 1,
@@ -163,10 +163,10 @@ function EditComplectation() {
       fd.append('salon', addForm.salon);
       fd.append('seats', addForm.seats);
       fd.append('conditions', addForm.conditions);
-      fd.append('Cruise_control', addForm.Cruise_control);
+      fd.append('cruise_control', addForm.cruise_control);
       fd.append(
-        'apple_Carplay_android_auto',
-        addForm.apple_Carplay_android_auto
+        'apple_carplay_android_auto',
+        addForm.apple_carplay_android_auto
       );
       fd.append('audio_speakers', addForm.audio_speakers);
       fd.append('usb', addForm.usb);
@@ -230,9 +230,9 @@ function EditComplectation() {
       seats: complect.seats || 'Тканевые',
 
       conditions: Number(complect.conditions) || 0,
-      Cruise_control: Number(complect.Cruise_control) || 0,
-      apple_Carplay_android_auto:
-        Number(complect.apple_Carplay_android_auto) || 0,
+      cruise_control: Number(complect.cruise_control) || 0,
+      apple_carplay_android_auto:
+        Number(complect.apple_carplay_android_auto) || 0,
 
       audio_speakers: Number(complect.audio_speakers) || 1,
       usb: Number(complect.usb) || 1,
@@ -770,14 +770,14 @@ function EditComplectation() {
                         <input
                           className="form-check-input"
                           type="checkbox"
-                          id="Cruise_control"
-                          name="Cruise_control"
-                          checked={addForm.Cruise_control === 1}
+                          id="cruise_control"
+                          name="cruise_control"
+                          checked={addForm.cruise_control === 1}
                           onChange={handleAddFormChange}
                         />
                         <label
                           className="form-check-label"
-                          htmlFor="Cruise_control"
+                          htmlFor="cruise_control"
                         >
                           Круиз-контроль
                         </label>
@@ -787,16 +787,16 @@ function EditComplectation() {
                         <input
                           className="form-check-input"
                           type="checkbox"
-                          id="apple_Carplay_android_auto"
-                          name="apple_Carplay_android_auto"
-                          checked={addForm.apple_Carplay_android_auto === 1}
+                          id="apple_carplay_android_auto"
+                          name="apple_carplay_android_auto"
+                          checked={addForm.apple_carplay_android_auto === 1}
                           onChange={handleAddFormChange}
                         />
                         <label
                           className="form-check-label"
-                          htmlFor="apple_Carplay_android_auto"
+                          htmlFor="apple_carplay_android_auto"
                         >
-                          Apple CarPlay / Android Auto
+                          Apple CarPlay и Android Auto
                         </label>
                       </div>
                     </div>
@@ -1175,14 +1175,14 @@ function EditComplectation() {
                         <input
                           className="form-check-input"
                           type="checkbox"
-                          id="Cruise_control_edit"
-                          name="Cruise_control"
-                          checked={editForm.Cruise_control === 1}
+                          id="cruise_control_edit"
+                          name="cruise_control"
+                          checked={editForm.cruise_control === 1}
                           onChange={handleEditFormChange}
                         />
                         <label
                           className="form-check-label"
-                          htmlFor="Cruise_control_edit"
+                          htmlFor="cruise_control_edit"
                         >
                           Круиз-контроль
                         </label>
@@ -1192,16 +1192,16 @@ function EditComplectation() {
                         <input
                           className="form-check-input"
                           type="checkbox"
-                          id="apple_Carplay_android_auto_edit"
-                          name="apple_Carplay_android_auto"
-                          checked={editForm.apple_Carplay_android_auto === 1}
+                          id="apple_carplay_android_auto_edit"
+                          name="apple_carplay_android_auto"
+                          checked={editForm.apple_carplay_android_auto === 1}
                           onChange={handleEditFormChange}
                         />
                         <label
                           className="form-check-label"
-                          htmlFor="apple_Carplay_android_auto_edit"
+                          htmlFor="apple_carplay_android_auto_edit"
                         >
-                          Apple CarPlay / Android Auto
+                          Apple CarPlay и Android Auto
                         </label>
                       </div>
                     </div>

@@ -8,6 +8,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./backend:/var/www/html          # код и public монтируются внутрь
+      # - /var/www/html/vendor
     environment:
       - DB_CONNECTION=mysql
       - DB_HOST=db
@@ -38,7 +39,7 @@ services:
       MYSQL_DATABASE: cardealership
       MYSQL_ROOT_PASSWORD: 123456
     volumes:
-      - ./docker/db-init:/docker-entrypoint-initdb.d
+      - ./.docker/db-init:/docker-entrypoint-initdb.d
     networks:
       - app-network
 
