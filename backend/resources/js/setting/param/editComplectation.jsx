@@ -3,6 +3,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 const descst = { fontFamily: 'TT Supermolot Neue Trial Medium' };
 const tab = { fontSize: '20px', width: '100%' };
 
+// Регулярка для названия комплектации:
+// - первая буква заглавная (RU/EN)
+// - далее буквы (RU/EN), цифры, + и -
+// - без пробелов в начале/конце (и вообще без пробелов в этом варианте)
+const complectationNameRegex =
+  /^[A-ZА-ЯЁ][A-Za-zА-Яа-яЁё0-9+-]*$/;
+
 function EditComplectation() {
   // ---------- МОДЕЛИ ----------
   const [models, setModels] = useState([]);
@@ -99,10 +106,12 @@ function EditComplectation() {
   const [addForm, setAddForm] = useState(initialForm);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [addNameError, setAddNameError] = useState('');
 
   const handleOpenAddModal = () => {
     setSaveError(null);
     setAddForm(initialForm);
+    setAddNameError('');
     setShowAddModal(true);
   };
 
@@ -125,6 +134,19 @@ function EditComplectation() {
         [name]: value,
       }));
     }
+
+    if (name === 'complectation_name') {
+      const val = value.trim();
+      if (!val) {
+        setAddNameError('Укажите название комплектации');
+      } else if (!complectationNameRegex.test(val)) {
+        setAddNameError(
+          'Неверный формат. Первая буква заглавная (RU/EN), далее буквы, цифры, + и -.'
+        );
+      } else {
+        setAddNameError('');
+      }
+    }
   };
 
   const handleCreateComplectation = async (e) => {
@@ -136,16 +158,35 @@ function EditComplectation() {
       if (!selectedModelId) {
         throw new Error('Не выбрана модель');
       }
-      if (!addForm.complectation_name.trim()) {
+
+      const name = addForm.complectation_name.trim();
+
+      if (!name) {
         throw new Error('Укажите название комплектации');
       }
+      if (!complectationNameRegex.test(name)) {
+        throw new Error(
+          'Неверный формат названия. Первая буква заглавная (RU/EN), далее буквы, цифры, + и -.'
+        );
+      }
+
       if (!addForm.price) {
         throw new Error('Укажите цену');
       }
 
+      // Локальная проверка дублей в рамках выбранной модели
+      const nameExists = filteredComplectations.some(
+        (c) => c.complectation_name.toLowerCase() === name.toLowerCase()
+      );
+      if (nameExists) {
+        throw new Error(
+          'Комплектация с таким названием уже существует для этой модели'
+        );
+      }
+
       const fd = new FormData();
       fd.append('model_id', selectedModelId);
-      fd.append('complectation_name', addForm.complectation_name);
+      fd.append('complectation_name', name);
       fd.append('price', addForm.price);
       fd.append('engine', addForm.engine);
       fd.append('track_fuel', addForm.track_fuel);
@@ -178,6 +219,12 @@ function EditComplectation() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        // Ларавель 422
+        if (res.status === 422 && data.errors) {
+          if (data.errors.complectation_name?.length) {
+            throw new Error(data.errors.complectation_name[0]);
+          }
+        }
         console.error('Back error:', data);
         throw new Error(data.message || 'Ошибка сохранения комплектации');
       }
@@ -198,10 +245,12 @@ function EditComplectation() {
   const [editingComplect, setEditingComplect] = useState(null);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState(null);
+  const [editNameError, setEditNameError] = useState('');
 
   const handleOpenEditModal = (complect) => {
     setEditError(null);
     setEditingComplect(complect);
+    setEditNameError('');
 
     setEditForm({
       complectation_name: complect.complectation_name || '',
@@ -261,6 +310,19 @@ function EditComplectation() {
         [name]: value,
       }));
     }
+
+    if (name === 'complectation_name') {
+      const val = value.trim();
+      if (!val) {
+        setEditNameError('Укажите название комплектации');
+      } else if (!complectationNameRegex.test(val)) {
+        setEditNameError(
+          'Неверный формат. Первая буква заглавная (RU/EN), далее буквы, цифры, + и -.'
+        );
+      } else {
+        setEditNameError('');
+      }
+    }
   };
 
   const handleUpdateComplectation = async (e) => {
@@ -272,14 +334,34 @@ function EditComplectation() {
 
     try {
       if (!selectedModelId) throw new Error('Не выбрана модель');
-      if (!editForm.complectation_name.trim())
-        throw new Error('Укажите название комплектации');
+
+      const name = editForm.complectation_name.trim();
+
+      if (!name) throw new Error('Укажите название комплектации');
+      if (!complectationNameRegex.test(name)) {
+        throw new Error(
+          'Неверный формат названия. Первая буква заглавная (RU/EN), далее буквы, цифры, + и -.'
+        );
+      }
+
       if (!editForm.price) throw new Error('Укажите цену');
 
-      // отправляем JSON через PUT
+      // Локальная проверка дублей в рамках модели, исключая текущую запись
+      const nameExists = filteredComplectations.some(
+        (c) =>
+          c.id !== editingComplect.id &&
+          c.complectation_name.toLowerCase() === name.toLowerCase()
+      );
+      if (nameExists) {
+        throw new Error(
+          'Комплектация с таким названием уже существует для этой модели'
+        );
+      }
+
       const payload = {
         model_id: selectedModelId,
         ...editForm,
+        complectation_name: name,
       };
 
       const res = await fetch(`/api/complectation/${editingComplect.id}`, {
@@ -292,6 +374,15 @@ function EditComplectation() {
 
       const data = await res.json().catch(() => ({}));
       console.log('update response', res.status, data);
+
+      if (!res.ok) {
+        if (res.status === 422 && data.errors) {
+          if (data.errors.complectation_name?.length) {
+            throw new Error(data.errors.complectation_name[0]);
+          }
+        }
+        throw new Error(data.message || 'Ошибка обновления комплектации');
+      }
 
       await loadComplectations();
       setShowEditModal(false);
@@ -322,7 +413,7 @@ function EditComplectation() {
     setComplectToDelete(null);
   };
 
- const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async () => {
     if (!complectToDelete) return;
 
     setDeleteSaving(true);
@@ -337,7 +428,6 @@ function EditComplectation() {
       try {
         data = await res.json();
       } catch (e) {
-        // если сервер не вернул JSON
         console.warn('No JSON in delete response', e);
       }
       console.log('delete response', res.status, data);
@@ -359,6 +449,18 @@ function EditComplectation() {
       setDeleteSaving(false);
     }
   };
+
+  const isAddSubmitDisabled =
+    saving ||
+    !!addNameError ||
+    !addForm.complectation_name.trim() ||
+    !addForm.price;
+
+  const isEditSubmitDisabled =
+    editSaving ||
+    !!editNameError ||
+    !editForm.complectation_name.trim() ||
+    !editForm.price;
 
   return (
     <>
@@ -481,14 +583,23 @@ function EditComplectation() {
 
                     {/* БАЗОВОЕ */}
                     <div className="mb-3">
-                      <label className="form-label">Название комплектации</label>
+                      <label className="form-label">
+                        Название комплектации
+                      </label>
                       <input
                         type="text"
                         name="complectation_name"
-                        className="form-control"
+                        className={`form-control ${
+                          addNameError ? 'is-invalid' : ''
+                        }`}
                         value={addForm.complectation_name}
                         onChange={handleAddFormChange}
                       />
+                      {addNameError && (
+                        <div className="invalid-feedback">
+                          {addNameError}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mb-3">
@@ -842,7 +953,7 @@ function EditComplectation() {
                     <button
                       type="submit"
                       className="btn btn-primary"
-                      disabled={saving}
+                      disabled={isAddSubmitDisabled}
                     >
                       {saving ? 'Сохранение...' : 'Сохранить'}
                     </button>
@@ -886,14 +997,23 @@ function EditComplectation() {
 
                     {/* БАЗОВОЕ */}
                     <div className="mb-3">
-                      <label className="form-label">Название комплектации</label>
+                      <label className="form-label">
+                        Название комплектации
+                      </label>
                       <input
                         type="text"
                         name="complectation_name"
-                        className="form-control"
+                        className={`form-control ${
+                          editNameError ? 'is-invalid' : ''
+                        }`}
                         value={editForm.complectation_name}
                         onChange={handleEditFormChange}
                       />
+                      {editNameError && (
+                        <div className="invalid-feedback">
+                          {editNameError}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mb-3">
@@ -1036,7 +1156,10 @@ function EditComplectation() {
                           checked={editForm.hatch === 1}
                           onChange={handleEditFormChange}
                         />
-                        <label className="form-check-label" htmlFor="hatch_edit">
+                        <label
+                          className="form-check-label"
+                          htmlFor="hatch_edit"
+                        >
                           Люк
                         </label>
                       </div>
@@ -1075,7 +1198,10 @@ function EditComplectation() {
                         />
                       </div>
                       <div className="col-md-4 mb-3">
-                        <label className="form-label" htmlFor="salon_edit">
+                        <label
+                          className="form-label"
+                          htmlFor="salon_edit"
+                        >
                           Салон
                         </label>
                         <select
@@ -1094,7 +1220,10 @@ function EditComplectation() {
                       </div>
 
                       <div className="col-md-4 mb-3">
-                        <label className="form-label" htmlFor="seats_edit">
+                        <label
+                          className="form-label"
+                          htmlFor="seats_edit"
+                        >
                           Сиденья
                         </label>
                         <select
@@ -1150,7 +1279,10 @@ function EditComplectation() {
                     {/* КЛИМАТ И КРУИЗ */}
                     <div className="row mb-3">
                       <div className="col-md-4">
-                        <label className="form-label" htmlFor="conditions_edit">
+                        <label
+                          className="form-label"
+                          htmlFor="conditions_edit"
+                        >
                           Кондиционер / климат
                         </label>
                         <select
@@ -1247,7 +1379,7 @@ function EditComplectation() {
                     <button
                       type="submit"
                       className="btn btn-primary"
-                      disabled={editSaving}
+                      disabled={isEditSubmitDisabled}
                     >
                       {editSaving ? 'Сохранение...' : 'Сохранить'}
                     </button>

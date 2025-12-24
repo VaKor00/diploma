@@ -108,6 +108,21 @@ function Profile() {
     post('/technical-service'); // route name 'technical-service.store'
   };
 
+  const getStatusText = (status) => {
+    switch (Number(status)) {
+      case 1:
+        return 'Ожидает подтверждения';
+      case 2:
+        return 'Подтверждено, ожидает приезда';
+      case 3:
+        return 'Авто на СТО';
+      case 4:
+        return 'Завершено';
+      default:
+        return 'Неизвестный статус';
+    }
+  };
+
   return (
     <div className="App" style={descst}>
     <Head title={`${user.first_name} ${user.last_name} | PHOENIX`} />
@@ -232,7 +247,7 @@ function Profile() {
             <h4 key={s.id}>
             {s.date_service} {s.time_service} –{' '}
             {/* {s.dealer?.name ?? 'Неизвестный дилер'}  */}
-            статус: {s.status_ts}
+            статус: {getStatusText(s.status_ts)}
             </h4>
         ))}
         </ul>

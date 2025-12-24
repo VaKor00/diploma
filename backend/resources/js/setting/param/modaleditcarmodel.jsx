@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 
 const descst = { fontFamily: 'TT Supermolot Neue Trial Medium' };
 
+// название модели: с заглавной буквы, дальше буквы/цифры/пробелы/-.,
+const MODEL_NAME_REGEX = /^[A-ZА-ЯЁ][\p{L}0-9\s\-.,]*$/u;
+
 function ModalEditCarModel({ show, model, onClose, onUpdate }) {
   const [form, setForm] = useState({
     model_name: '',
@@ -14,24 +17,25 @@ function ModalEditCarModel({ show, model, onClose, onUpdate }) {
     fuel_tank: '',
     engine_m: '',
     min_price: 0,
-    img: '',            // сюда положим либо File, либо ничего
+    img: '',
     description: '',
     description_full: '',
-    salon_photo: '',    // File или ничего
-    features: '',       // исходная строка (JSON из БД)
+    salon_photo: '',
+    features: '',
   });
 
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(null);   // общая ошибка
+  const [errors, setErrors] = useState({});   // ошибки по полям
 
   const [salonPreview, setSalonPreview] = useState(null);
   const [salonPoints, setSalonPoints] = useState([]);
   const [activePointIndex, setActivePointIndex] = useState(null);
 
-  // Когда приходят данные модели или открывается модалка — заполняем форму
   useEffect(() => {
     if (show && model) {
       setError(null);
+      setErrors({});
 
       setForm(prev => ({
         ...prev,
@@ -45,7 +49,7 @@ function ModalEditCarModel({ show, model, onClose, onUpdate }) {
         fuel_tank: model.fuel_tank ?? '',
         engine_m: model.engine_m ?? '',
         min_price: model.min_price ?? 0,
-        img: '',  // существующий путь к картинке можно хранить отдельно, файл тут не нужен
+        img: '',
         description: model.description ?? '',
         description_full: model.description_full ?? '',
         salon_photo: '',
@@ -66,22 +70,14 @@ function ModalEditCarModel({ show, model, onClose, onUpdate }) {
       }
 
       setActivePointIndex(null);
-
-      // превью салона: если есть путь к картинке из БД — показываем его
-      // предполагаем, что в model.salon_photo_path или похожем поле есть URL
-      if (model.salon_photo_path) {
-        setSalonPreview(model.salon_photo_path);
-      } else {
-        setSalonPreview(null);
-      }
+      setSalonPreview(model.salon_photo_path || model.salon_photo || null);
     }
   }, [show, model]);
 
-  // очистка objectURL только если мы сами создавали превью как blob
+  // если бы мы создавали objectURL — тут бы его ревокали
   useEffect(() => {
     return () => {
-      // если salonPreview — это URL.createObjectURL, можно его ревокать
-      // если это URL с сервера (строка), ревокать не нужно. Тут оставляем как есть.
+      // оставляем пустым, если salonPreview — URL с сервера
     };
   }, [salonPreview]);
 
@@ -90,17 +86,21 @@ function ModalEditCarModel({ show, model, onClose, onUpdate }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
+    setErrors(prev => ({ ...prev, [name]: null }));
+    setError(null);
   };
 
   const handleNumberChange = (e) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
+    setErrors(prev => ({ ...prev, [name]: null }));
+    setError(null);
   };
 
   const handleImgFileChange = (e) => {
     const file = e.target.files[0] || null;
     setForm(prev => ({ ...prev, img: file }));
-    // превью для основной картинки можно сделать отдельно, если нужно
+    setError(null);
   };
 
   const handleSalonFileChange = (e) => {
@@ -111,8 +111,6 @@ function ModalEditCarModel({ show, model, onClose, onUpdate }) {
     setActivePointIndex(null);
 
     if (file) {
-      // если старое превью было objectURL, можно его ревокать;
-      // если это url с сервера — ничего страшного, что не ревокаем
       try {
         const url = URL.createObjectURL(file);
         setSalonPreview(url);
@@ -120,8 +118,9 @@ function ModalEditCarModel({ show, model, onClose, onUpdate }) {
         console.error('Ошибка создания objectURL', err);
       }
     } else {
-      setSalonPreview(model?.salon_photo_path || null);
+      setSalonPreview(model?.salon_photo_path || model?.salon_photo || null);
     }
+    setError(null);
   };
 
   const handleSalonImageClick = (e) => {
@@ -159,21 +158,46 @@ function ModalEditCarModel({ show, model, onClose, onUpdate }) {
     }
   };
 
+  const validate = () => {
+    const newErrors = {};
+
+    // model_name
+    if (!form.model_name.trim()) {
+      newErrors.model_name = 'Укажите название модели';
+    } else if (!MODEL_NAME_REGEX.test(form.model_name.trim())) {
+      newErrors.model_name =
+        'Название модели должно начинаться с заглавной буквы и содержать только буквы, цифры и знаки - . ,';
+    }
+
+    // числовые поля
+    ['length', 'width', 'height', 'whellbase', 'clearance', 'trunk', 'fuel_tank', 'engine_m'].forEach((field) => {
+      if (form[field] && isNaN(Number(form[field]))) {
+        newErrors[field] = 'Значение должно быть числом';
+      }
+    });
+
+    if (form.min_price && isNaN(Number(form.min_price))) {
+      newErrors.min_price = 'Цена должна быть числом';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
 
     try {
-      if (!form.model_name.trim()) {
-        throw new Error('Укажите название модели');
+      if (!validate()) {
+        throw new Error('Исправьте ошибки в форме');
       }
 
       const formToSend = {
         ...form,
-        // перезаписываем features JSON-ом точек
         features: JSON.stringify(salonPoints),
-        id: model.id, // чтобы на бэке знать, что обновлять
+        id: model.id,
       };
 
       await onUpdate(formToSend);
@@ -217,12 +241,17 @@ function ModalEditCarModel({ show, model, onClose, onUpdate }) {
                 <label className="form-label">Модель</label>
                 <input
                   type="text"
-                  className="form-control"
+                  className={
+                    'form-control' + (errors.model_name ? ' is-invalid' : '')
+                  }
                   name="model_name"
                   value={form.model_name}
                   onChange={handleChange}
                   required
                 />
+                {errors.model_name && (
+                  <div className="invalid-feedback">{errors.model_name}</div>
+                )}
               </div>
 
               {/* Габариты */}
@@ -231,41 +260,61 @@ function ModalEditCarModel({ show, model, onClose, onUpdate }) {
                   <label className="form-label">Длина, мм</label>
                   <input
                     type="number"
-                    className="form-control"
+                    className={
+                      'form-control' + (errors.length ? ' is-invalid' : '')
+                    }
                     name="length"
                     value={form.length}
                     onChange={handleNumberChange}
                   />
+                  {errors.length && (
+                    <div className="invalid-feedback">{errors.length}</div>
+                  )}
                 </div>
                 <div className="col-md-3 mb-3">
                   <label className="form-label">Ширина, мм</label>
                   <input
                     type="number"
-                    className="form-control"
+                    className={
+                      'form-control' + (errors.width ? ' is-invalid' : '')
+                    }
                     name="width"
                     value={form.width}
                     onChange={handleNumberChange}
                   />
+                  {errors.width && (
+                    <div className="invalid-feedback">{errors.width}</div>
+                  )}
                 </div>
                 <div className="col-md-3 mb-3">
                   <label className="form-label">Высота, мм</label>
                   <input
                     type="number"
-                    className="form-control"
+                    className={
+                      'form-control' + (errors.height ? ' is-invalid' : '')
+                    }
                     name="height"
                     value={form.height}
                     onChange={handleNumberChange}
                   />
+                  {errors.height && (
+                    <div className="invalid-feedback">{errors.height}</div>
+                  )}
                 </div>
                 <div className="col-md-3 mb-3">
                   <label className="form-label">Колёсная база, мм</label>
                   <input
                     type="number"
-                    className="form-control"
+                    className={
+                      'form-control' + (errors.whellbase ? ' is-invalid' : '')
+                    }
                     name="whellbase"
                     value={form.whellbase}
                     onChange={handleNumberChange}
                   />
+                  {errors.whellbase && (
+                    <div className="invalid-feedback">{errors.whellbase}</div>
+                  )}
                 </div>
               </div>
 
@@ -275,41 +324,61 @@ function ModalEditCarModel({ show, model, onClose, onUpdate }) {
                   <label className="form-label">Клиренс, мм</label>
                   <input
                     type="number"
-                    className="form-control"
+                    className={
+                      'form-control' + (errors.clearance ? ' is-invalid' : '')
+                    }
                     name="clearance"
                     value={form.clearance}
                     onChange={handleNumberChange}
                   />
+                  {errors.clearance && (
+                    <div className="invalid-feedback">{errors.clearance}</div>
+                  )}
                 </div>
                 <div className="col-md-3 mb-3">
                   <label className="form-label">Объем багажника, л</label>
                   <input
                     type="number"
-                    className="form-control"
+                    className={
+                      'form-control' + (errors.trunk ? ' is-invalid' : '')
+                    }
                     name="trunk"
                     value={form.trunk}
                     onChange={handleNumberChange}
                   />
+                  {errors.trunk && (
+                    <div className="invalid-feedback">{errors.trunk}</div>
+                  )}
                 </div>
                 <div className="col-md-3 mb-3">
                   <label className="form-label">Объем бака, л</label>
                   <input
                     type="number"
-                    className="form-control"
+                    className={
+                      'form-control' + (errors.fuel_tank ? ' is-invalid' : '')
+                    }
                     name="fuel_tank"
                     value={form.fuel_tank}
                     onChange={handleNumberChange}
                   />
+                  {errors.fuel_tank && (
+                    <div className="invalid-feedback">{errors.fuel_tank}</div>
+                  )}
                 </div>
                 <div className="col-md-3 mb-3">
                   <label className="form-label">Мощность двигателя, л.с.</label>
                   <input
                     type="number"
-                    className="form-control"
+                    className={
+                      'form-control' + (errors.engine_m ? ' is-invalid' : '')
+                    }
                     name="engine_m"
                     value={form.engine_m}
                     onChange={handleNumberChange}
                   />
+                  {errors.engine_m && (
+                    <div className="invalid-feedback">{errors.engine_m}</div>
+                  )}
                 </div>
               </div>
 

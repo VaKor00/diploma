@@ -40,8 +40,8 @@ COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 COPY . .
 
 # 5.1 Сборка фронтенда Vite
-RUN npm install \
- && npm run build
+# RUN npm install \
+#  && npm run build
 
 # 6. Копируем entrypoint-скрипт
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

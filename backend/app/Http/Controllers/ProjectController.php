@@ -20,6 +20,7 @@ use App\Models\Sales;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Hash;
 
@@ -270,17 +271,54 @@ class ProjectController extends Controller
         ]);
     }
     
+    private function normalizeName(string $raw, ?int $ignoreId = null): string
+    {
+        $value   = preg_replace('/\s+/', ' ', $raw ?? '');
+        $trimmed = trim($value);
+
+        if ($trimmed === '') {
+            throw ValidationException::withMessages([
+                'name' => 'Название не может быть пустым',
+            ]);
+        }
+
+        // первая буква заглавная
+        $first = mb_strtoupper(mb_substr($trimmed, 0, 1, 'UTF-8'), 'UTF-8');
+        $rest  = mb_substr($trimmed, 1, null, 'UTF-8');
+
+        $normalized = $first . $rest;
+
+        // проверка уникальности в таблице startpage (без учёта регистра)
+        $query = DB::table('startpage')
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($normalized, 'UTF-8')]);
+
+        if ($ignoreId !== null) {
+            $query->where('id', '!=', $ignoreId);
+        }
+
+        if ($query->exists()) {
+            throw ValidationException::withMessages([
+                'name' => 'Элемент с таким заголовком уже существует',
+            ]);
+        }
+
+        return $normalized;
+    }
+    
     public function startpageStore(Request $request)
     {
         $data = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
-            'edit_content'  => ['required', 'integer'],
-            'desc'  => ['nullable', 'string', 'max:2550'],
+            'name'         => ['required', 'string', 'max:255'],
+            'edit_content' => ['required', 'integer'],
+            'desc'         => ['nullable', 'string', 'max:2550'],
             'button_bool'  => ['nullable', 'integer'],
-            'button'  => ['nullable', 'string', 'max:255'],
-            'link' => ['nullable', 'string', 'max:255'],
-            'img' => ['nullable', 'image', 'max:5120'], // до 5 МБ
+            'button'       => ['nullable', 'string', 'max:255'],
+            'link'         => ['nullable', 'string', 'max:255'],
+            'img'          => ['nullable', 'image', 'max:5120'],
         ]);
+
+        // Нормализуем и сразу проверяем уникальность
+        $data['name'] = $this->normalizeName($data['name'], null);
 
         $imgPath = null;
 
@@ -294,21 +332,18 @@ class ProjectController extends Controller
             $imgPath = '/img/startpage/' . $filename;
         }
 
-        // приоритет
-
-        $maxPriority = DB::table('startpage')->max('priority');
+        $maxPriority  = DB::table('startpage')->max('priority');
         $nextPriority = $maxPriority !== null ? $maxPriority + 1 : 1;
 
-        // сохраняем запись в БД
         $id = DB::table('startpage')->insertGetId([
-            'name'       => $data['name'],
-            'edit_content' => $data['edit_content'] ?? null,
-            'desc' => $data['desc'] ?? null,
+            'name'        => $data['name'],
+            'edit_content'=> $data['edit_content'] ?? null,
+            'desc'        => $data['desc'] ?? null,
             'button_bool' => $data['button_bool'] ?? null,
-            'button' => $data['button'] ?? null,
+            'button'      => $data['button'] ?? null,
             'link'        => $data['link'] ?? null,
             'img'         => $imgPath,
-            'priority'     => $nextPriority,
+            'priority'    => $nextPriority,
         ]);
 
         $slide = DB::table('startpage')->where('id', $id)->first();
@@ -319,19 +354,22 @@ class ProjectController extends Controller
     public function startpageUpdate(Request $request, $id)
     {
         $data = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
-            'edit_content'  => ['required', 'integer'],
-            'desc'  => ['nullable', 'string', 'max:2550'],
+            'name'         => ['required', 'string', 'max:255'],
+            'edit_content' => ['required', 'integer'],
+            'desc'         => ['nullable', 'string', 'max:2550'],
             'button_bool'  => ['nullable', 'integer'],
-            'button'  => ['nullable', 'string', 'max:255'],
-            'link' => ['nullable', 'string', 'max:255'],
-            'img' => ['nullable', 'image', 'max:5120'], // до 5 МБ
+            'button'       => ['nullable', 'string', 'max:255'],
+            'link'         => ['nullable', 'string', 'max:255'],
+            'img'          => ['nullable', 'image', 'max:5120'],
         ]);
 
         $slide = DB::table('startpage')->where('id', $id)->first();
         if (!$slide) {
             return response()->json(['message' => 'Not found'], 404);
         }
+
+        // нормализуем и проверяем уникальность, игнорируя текущую запись
+        $data['name'] = $this->normalizeName($data['name'], (int)$id);
 
         $updateData = [
             'name'         => $data['name'],
@@ -342,9 +380,8 @@ class ProjectController extends Controller
             'link'         => $data['link'] ?? null,
         ];
 
-        // если пришёл новый файл - меняем картинку
         if ($request->hasFile('img')) {
-            $image = $request->file('img');
+            $image    = $request->file('img');
             $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
             $image->move(public_path('img/startpage'), $filename);
             $imgPath = '/img/startpage/' . $filename;
@@ -439,12 +476,25 @@ class ProjectController extends Controller
     public function cityStore(Request $request)
     {
         $data = $request->validate([
-            'city'        => ['required', 'string', 'max:255'],
+            'city' => ['required', 'string', 'max:255'],
         ]);
 
-        // сохраняем запись в БД
+        $city = trim($data['city']);
+
+        // Проверка на дубликат (регистр чувствительный/нет — см. ниже)
+        $exists = DB::table('city')
+            ->whereRaw('LOWER(city) = LOWER(?)', [$city])
+            ->exists();
+
+        if ($exists) {
+            return response()->json([
+                'message' => 'Такой город уже существует',
+                'code'    => 'CITY_ALREADY_EXISTS',
+            ], 409);
+        }
+
         $id = DB::table('city')->insertGetId([
-            'city'       => $data['city'],
+            'city' => $city,
         ]);
 
         $slide = DB::table('city')->where('id', $id)->first();
@@ -464,39 +514,102 @@ class ProjectController extends Controller
 
     public function dealersStore(Request $request)
     {
-         $data = $request->validate([
-            'city'     => ['required', 'integer'],
-            'city_name'     => ['required', 'string', 'max:255'],
-            'street'     => ['required', 'string', 'max:255'],
-            'home'     => ['required', 'string', 'max:255'],
-            'name'     => ['required', 'string', 'max:255'],
-            'open'     => ['required', 'date_format:H:i'],
-            'closed'     => ['required', 'date_format:H:i'],
-            'timezone'     => ['required', 'string', 'max:255'],
-            'phone'     => ['required', 'string', 'max:15'],
-            'coord_x'     => ['required', 'numeric'],
-            'coord_y'     => ['required', 'numeric'],
+        $data = $request->validate([
+            'city'      => ['required', 'integer'],
+            'city_name' => ['required', 'string', 'max:255'],
+
+            'street'    => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^(улица|проспект|переулок|бульвар|шоссе|проезд)\s+[A-ZА-ЯЁ][\pL0-9\s\-\.\,]*$/u',
+            ],
+
+            'home'      => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[A-ZА-ЯЁ0-9\/]+(?:\s+(?:корпус|строение)\s+[A-ZА-ЯЁ0-9\/]+)?$/u',
+            ],
+
+            'name'      => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[A-ZА-ЯЁ][\pL0-9\s\-\.\,]*$/u',
+            ],
+
+            'open'      => ['required', 'date_format:H:i'],
+            'closed'    => ['required', 'date_format:H:i'],
+
+            'timezone'  => ['required', 'string', 'max:255'],
+
+            'phone'     => [
+                'required',
+                'string',
+                'max:12',
+                'regex:/^\+7[3489]\d{9}$/',
+            ],
+
+            'coord_x'   => ['required', 'numeric'],
+            'coord_y'   => ['required', 'numeric'],
+        ], [
+            'street.regex' => 'Адрес должен начинаться со слова "улица/проспект/переулок/бульвар/шоссе/проезд" и названием с заглавной буквы.',
+            'home.regex'   => 'Номер дома может содержать только заглавные буквы, цифры, "/", а также "корпус" или "строение" с номером.',
+            'name.regex'   => 'Название должно начинаться с заглавной буквы.',
+            'phone.regex'  => 'Телефон должен быть в формате +7XXXXXXXXXX, где после +7 цифра 3, 4, 8 или 9.',
         ]);
 
-        // сохраняем запись в БД
+        // доп. проверка: время открытия < время закрытия
+        if ($data['open'] >= $data['closed']) {
+            return response()->json([
+                'message' => 'Время открытия должно быть меньше времени закрытия.',
+            ], 422);
+        }
+
+        // 1) Проверка дубля по адресу (город + улица + дом)
+        $addressExists = DB::table('dealers')
+            ->where('city', $data['city'])
+            ->where('street', $data['street'])
+            ->where('home', $data['home'])
+            ->exists();
+
+        if ($addressExists) {
+            return response()->json([
+                'message' => 'По этому адресу уже существует дилерский центр.',
+            ], 422);
+        }
+
+        // 2) Проверка дубля по названию дилера в пределах города
+        $nameExistsInCity = DB::table('dealers')
+            ->where('city', $data['city'])
+            ->where('name', $data['name'])
+            ->exists();
+
+        if ($nameExistsInCity) {
+            return response()->json([
+                'message' => 'Дилер с таким названием уже существует в этом городе.',
+            ], 422);
+        }
+
         $id = DB::table('dealers')->insertGetId([
-            'city'       => $data['city'],
-            'city_name'       => $data['city_name'],
-            'street'       => $data['street'],
-            'home'       => $data['home'],
-            'name'       => $data['name'],
-            'open'       => $data['open'],
-            'closed'       => $data['closed'],
-            'timezone'       => $data['timezone'],
-            'phone'       => $data['phone'],
-            'coord_x'       => $data['coord_x'],
-            'coord_y'       => $data['coord_y'],
-            'login'       => 0,
+            'city'      => $data['city'],
+            'city_name' => $data['city_name'],
+            'street'    => $data['street'],
+            'home'      => $data['home'],
+            'name'      => $data['name'],
+            'open'      => $data['open'],
+            'closed'    => $data['closed'],
+            'timezone'  => $data['timezone'],
+            'phone'     => $data['phone'],
+            'coord_x'   => $data['coord_x'],
+            'coord_y'   => $data['coord_y'],
+            'login'     => 0,
         ]);
 
-        $slide = DB::table('condition')->where('id', $id)->first();
+        $dealer = DB::table('dealers')->where('id', $id)->first();
 
-        return response()->json($slide, 201);
+        return response()->json($dealer, 201);
     }
 
     public function dealersUpdate(Request $request, $id)
@@ -509,18 +622,84 @@ class ProjectController extends Controller
         $data = $request->validate([
             'city'      => ['required', 'integer'],
             'city_name' => ['required', 'string', 'max:255'],
-            'street'    => ['required', 'string', 'max:255'],
-            'home'      => ['required', 'string', 'max:255'],
-            'name'      => ['required', 'string', 'max:255'],
+
+            'street'    => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^(улица|проспект|переулок|бульвар|шоссе|проезд)\s+[A-ZА-ЯЁ][\pL0-9\s\-\.\,]*$/u',
+            ],
+
+            'home'      => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[A-ZА-ЯЁ0-9\/]+(?:\s+(?:корпус|строение)\s+[A-ZА-ЯЁ0-9\/]+)?$/u',
+            ],
+
+            'name'      => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[A-ZА-ЯЁ][\pL0-9\s\-\.\,]*$/u',
+            ],
+
             'open'      => ['required', 'date_format:H:i'],
             'closed'    => ['required', 'date_format:H:i'],
+
             'timezone'  => ['required', 'string', 'max:255'],
-            'phone'     => ['required', 'string', 'max:15'],
+
+            'phone'     => [
+                'required',
+                'string',
+                'max:12',
+                'regex:/^\+7[3489]\d{9}$/',
+            ],
+
             'coord_x'   => ['required', 'numeric'],
             'coord_y'   => ['required', 'numeric'],
+        ], [
+            'street.regex' => 'Адрес должен начинаться со слова "улица/проспект/переулок/бульвар/шоссе/проезд" и названием с заглавной буквы.',
+            'home.regex'   => 'Номер дома может содержать только заглавные буквы, цифры, "/", а также "корпус" или "строение" с номером.',
+            'name.regex'   => 'Название должно начинаться с заглавной буквы.',
+            'phone.regex'  => 'Телефон должен быть в формате +7XXXXXXXXXX, где после +7 цифра 3, 4, 8 или 9.',
         ]);
 
-        $update = [
+        // доп. проверка: время открытия < время закрытия
+        if ($data['open'] >= $data['closed']) {
+            return response()->json([
+                'message' => 'Время открытия должно быть меньше времени закрытия.',
+            ], 422);
+        }
+
+        // 1) Проверка дубля по адресу (город + улица + дом), исключая текущую запись
+        $addressExists = DB::table('dealers')
+            ->where('city', $data['city'])
+            ->where('street', $data['street'])
+            ->where('home', $data['home'])
+            ->where('id', '<>', $id)
+            ->exists();
+
+        if ($addressExists) {
+            return response()->json([
+                'message' => 'По этому адресу уже существует дилерский центр.',
+            ], 422);
+        }
+
+        // 2) Проверка дубля по названию дилера в городе, исключая текущую запись
+        $nameExistsInCity = DB::table('dealers')
+            ->where('city', $data['city'])
+            ->where('name', $data['name'])
+            ->where('id', '<>', $id)
+            ->exists();
+
+        if ($nameExistsInCity) {
+            return response()->json([
+                'message' => 'Дилер с таким названием уже существует в этом городе.',
+            ], 422);
+        }
+
+        DB::table('dealers')->where('id', $id)->update([
             'city'      => $data['city'],
             'city_name' => $data['city_name'],
             'street'    => $data['street'],
@@ -532,9 +711,7 @@ class ProjectController extends Controller
             'phone'     => $data['phone'],
             'coord_x'   => $data['coord_x'],
             'coord_y'   => $data['coord_y'],
-        ];
-
-        DB::table('dealers')->where('id', $id)->update($update);
+        ]);
 
         $updatedSlide = DB::table('dealers')->where('id', $id)->first();
 
@@ -554,68 +731,72 @@ class ProjectController extends Controller
     public function modelStore(Request $request)
     {
         $data = $request->validate([
-            'model_name' => ['required', 'string', 'max:255'],
-            'length'  => ['required', 'integer'],
-            'width'  => ['required', 'integer'],
-            'height'  => ['required', 'integer'],
-            'whellbase'  => ['required', 'integer'],
-            'clearance'  => ['required', 'integer'],
-            'trunk'  => ['required', 'integer'],
-            'fuel_tank'  => ['required', 'integer'],
-            'engine_m'  => ['required', 'integer'],
-            'min_price'  => ['required', 'integer'],
-            'description' => ['required', 'string', 'max:1550'],
+            'model_name' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[A-ZА-ЯЁ][\pL0-9\s\-\.\,]*$/u',
+            ],
+            'length'           => ['required', 'integer'],
+            'width'            => ['required', 'integer'],
+            'height'           => ['required', 'integer'],
+            'whellbase'        => ['required', 'integer'],
+            'clearance'        => ['required', 'integer'],
+            'trunk'            => ['required', 'integer'],
+            'fuel_tank'        => ['required', 'integer'],
+            'engine_m'         => ['required', 'integer'],
+            'min_price'        => ['required', 'integer'],
+            'description'      => ['required', 'string', 'max:1550'],
             'description_full' => ['required', 'string', 'max:2550'],
-            'features' => ['required', 'string', 'max:4255'],
-            'img'        => ['required', 'image', 'max:15120'], 
-            'salon_photo'        => ['required', 'image', 'max:15120'],
+            'features'         => ['required', 'string', 'max:4255'],
+            'img'              => ['required', 'image', 'max:15120'],
+            'salon_photo'      => ['required', 'image', 'max:15120'],
+        ], [
+            'model_name.regex' => 'Название модели должно начинаться с заглавной буквы.',
         ]);
 
-        // изображение машины
+        // проверка дубля по названию модели
+        $exists = DB::table('models')
+            ->where('model_name', $data['model_name'])
+            ->exists();
 
+        if ($exists) {
+            return response()->json([
+                'message' => 'Модель с таким названием уже существует.',
+            ], 422);
+        }
+
+        // изображение машины
         /** @var \Illuminate\Http\UploadedFile $image */
         $image = $request->file('img');
-
-        // генерируем уникальное имя
         $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-
-        // сохраняем в public/img/start
         $image->move(public_path('img/cars'), $filename);
-
-        // ссылка, которая будет храниться в БД и использоваться на фронте
         $imgPath = '/img/cars/' . $filename;
 
         // изображение салона
-
-        /** @var \Illuminate\Http\UploadedFile $image */
+        /** @var \Illuminate\Http\UploadedFile $image1 */
         $image1 = $request->file('salon_photo');
-
-        // генерируем уникальное имя
         $filename1 = time() . '_' . uniqid() . '.' . $image1->getClientOriginalExtension();
-
-        // сохраняем в public/img/start
         $image1->move(public_path('img/cars'), $filename1);
-
-        // ссылка, которая будет храниться в БД и использоваться на фронте
         $imgPath1 = '/img/cars/' . $filename1;
 
         // сохраняем запись в БД
         $id = DB::table('models')->insertGetId([
             'model_name'       => $data['model_name'],
-            'length' => $data['length'],
-            'width' => $data['width'],
-            'height' => $data['height'],
-            'whellbase' => $data['whellbase'],
-            'clearance' => $data['clearance'],
-            'trunk' => $data['trunk'],
-            'fuel_tank' => $data['fuel_tank'],
-            'engine_m' => $data['engine_m'],
-            'min_price' => $data['min_price'],
-            'description' => $data['description'],
+            'length'           => $data['length'],
+            'width'            => $data['width'],
+            'height'           => $data['height'],
+            'whellbase'        => $data['whellbase'],
+            'clearance'        => $data['clearance'],
+            'trunk'            => $data['trunk'],
+            'fuel_tank'        => $data['fuel_tank'],
+            'engine_m'         => $data['engine_m'],
+            'min_price'        => $data['min_price'],
+            'description'      => $data['description'],
             'description_full' => $data['description_full'],
-            'features' => $data['features'],
-            'img'         => $imgPath,
-            'salon_photo' => $imgPath1,
+            'features'         => $data['features'],
+            'img'              => $imgPath,
+            'salon_photo'      => $imgPath1,
         ]);
 
         $slide = DB::table('models')->where('id', $id)->first();
@@ -625,15 +806,18 @@ class ProjectController extends Controller
 
    public function modelUpdate(Request $request, $id)
     {
-        // Проверяем, есть ли запись
         $slide = DB::table('models')->where('id', $id)->first();
         if (!$slide) {
             return response()->json(['message' => 'Модель не найдена'], 404);
         }
 
-        // Валидация. Картинки делаем необязательными (nullable)
         $data = $request->validate([
-            'model_name'        => ['required', 'string', 'max:255'],
+            'model_name'        => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[A-ZА-ЯЁ][\pL0-9\s\-\.\,]*$/u',
+            ],
             'length'            => ['required', 'integer'],
             'width'             => ['required', 'integer'],
             'height'            => ['required', 'integer'],
@@ -648,9 +832,22 @@ class ProjectController extends Controller
             'features'          => ['required', 'string', 'max:4255'],
             'img'               => ['nullable', 'image', 'max:15120'],
             'salon_photo'       => ['nullable', 'image', 'max:15120'],
+        ], [
+            'model_name.regex' => 'Название модели должно начинаться с заглавной буквы.',
         ]);
 
-        // Базовый набор полей для обновления
+        // проверка дубля по названию модели, исключая текущую
+        $exists = DB::table('models')
+            ->where('model_name', $data['model_name'])
+            ->where('id', '<>', $id)
+            ->exists();
+
+        if ($exists) {
+            return response()->json([
+                'message' => 'Модель с таким названием уже существует.',
+            ], 422);
+        }
+
         $update = [
             'model_name'       => $data['model_name'],
             'length'           => $data['length'],
@@ -665,10 +862,9 @@ class ProjectController extends Controller
             'description'      => $data['description'],
             'description_full' => $data['description_full'],
             'features'         => $data['features'],
-            // img и salon_photo добавим ниже, только если придут новые файлы
         ];
 
-        // Если пришёл новый файл модели
+        // новое изображение модели
         if ($request->hasFile('img')) {
             $image = $request->file('img');
             $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
@@ -676,7 +872,7 @@ class ProjectController extends Controller
             $update['img'] = '/img/cars/' . $filename;
         }
 
-        // Если пришёл новый файл салона
+        // новое изображение салона
         if ($request->hasFile('salon_photo')) {
             $image1 = $request->file('salon_photo');
             $filename1 = time() . '_' . uniqid() . '.' . $image1->getClientOriginalExtension();
@@ -684,11 +880,7 @@ class ProjectController extends Controller
             $update['salon_photo'] = '/img/cars/' . $filename1;
         }
 
-        // Выполняем обновление
-        $rows = DB::table('models')->where('id', $id)->update($update);
-
-        // Можно залогировать, если нужно
-        // \Log::info('modelUpdate rows updated', ['id' => $id, 'rows' => $rows]);
+        DB::table('models')->where('id', $id)->update($update);
 
         $updatedSlide = DB::table('models')->where('id', $id)->first();
         return response()->json($updatedSlide);
@@ -707,31 +899,47 @@ class ProjectController extends Controller
     // добавление комплектации
    public function complectationStore(Request $request)
 {
-    $data = $request->validate([
-        'model_id'                   => ['required', 'integer'],
-        'complectation_name'         => ['required', 'string', 'max:255'],
-        'price'                      => ['required', 'integer'],
-        'engine'                     => ['required', 'integer'],
-        'track_fuel'                 => ['required', 'numeric'],
-        'city_fuel'                  => ['required', 'numeric'],
-        'transmission'               => ['required', 'string', 'max:255'],
-        'brakes'                     => ['required', 'string', 'max:255'],
-        'wheel_drive'                => ['required', 'string', 'max:255'],
-        'weight'                     => ['required', 'integer'],
-        'headlights'                 => ['required', 'string', 'max:255'],
-        'hatch'                      => ['required', 'integer'],
-        'tinting'                    => ['required', 'integer'],
-        'airbag'                     => ['required', 'integer'],
-        'heated_front_seats'         => ['required', 'integer'],
-        'heated_rear_seats'          => ['required', 'integer'],
-        'salon'                      => ['required', 'string'],
-        'seats'                      => ['required', 'string'],
-        'conditions'                 => ['required', 'integer'],
-        'cruise_control'             => ['required', 'integer'],
-        'apple_carplay_android_auto' => ['required', 'integer'],
-        'audio_speakers'             => ['required', 'integer'],
-        'usb'                        => ['required', 'integer'],
-    ]);
+    try {
+        $data = $request->validate([
+            'model_id'           => ['required', 'integer'],
+            'complectation_name' => [
+                'required',
+                'string',
+                'max:255',
+                // уникально в рамках одной модели
+                Rule::unique('complectation', 'complectation_name')
+                    ->where('model_id', $request->input('model_id')),
+                // первая буква заглавная (RU/EN), дальше буквы/цифры/+/-
+                'regex:/^[A-ZА-ЯЁ][A-Za-zА-Яа-яЁё0-9+-]*$/u',
+            ],
+            'price'                      => ['required', 'integer'],
+            'engine'                     => ['required', 'integer'],
+            'track_fuel'                 => ['required', 'numeric'],
+            'city_fuel'                  => ['required', 'numeric'],
+            'transmission'               => ['required', 'string', 'max:255'],
+            'brakes'                     => ['required', 'string', 'max:255'],
+            'wheel_drive'                => ['required', 'string', 'max:255'],
+            'weight'                     => ['required', 'integer'],
+            'headlights'                 => ['required', 'string', 'max:255'],
+            'hatch'                      => ['required', 'integer'],
+            'tinting'                    => ['required', 'integer'],
+            'airbag'                     => ['required', 'integer'],
+            'heated_front_seats'         => ['required', 'integer'],
+            'heated_rear_seats'          => ['required', 'integer'],
+            'salon'                      => ['required', 'string'],
+            'seats'                      => ['required', 'string'],
+            'conditions'                 => ['required', 'integer'],
+            'cruise_control'             => ['required', 'integer'],
+            'apple_carplay_android_auto' => ['required', 'integer'],
+            'audio_speakers'             => ['required', 'integer'],
+            'usb'                        => ['required', 'integer'],
+        ]);
+    } catch (ValidationException $e) {
+        return response()->json([
+            'message' => 'Ошибка валидации',
+            'errors'  => $e->errors(),
+        ], 422);
+    }
 
     $id = DB::table('complectation')->insertGetId([
         'model_id'                   => $data['model_id'],
@@ -759,32 +967,34 @@ class ProjectController extends Controller
         'usb'                        => $data['usb'],
     ]);
 
-    // 2. Считаем минимальную цену по этой модели
     $minPrice = DB::table('complectation')
         ->where('model_id', $data['model_id'])
         ->min('price');
 
-    // 3. Обновляем таблицу моделей (поставь свои названия таблицы/колонки)
-    DB::table('Models')
+    DB::table('models')
         ->where('id', $data['model_id'])
         ->update(['min_price' => $minPrice]);
 
-    // 4. Отдаём созданную комплектацию
     $row = DB::table('complectation')->where('id', $id)->first();
 
-    // ВАЖНО: статус 201
     return response()->json($row, 201);
-    }
+}
 
    public function complectationUpdate(Request $request, $id)
 {
     try {
-        // Посмотреть, что реально приходит
-        // \Log::info('Update request', $request->all());
-
         $data = $request->validate([
-            'model_id'                   => ['required', 'integer'],
-            'complectation_name'         => ['required', 'string', 'max:255'],
+            'model_id'           => ['required', 'integer'],
+            'complectation_name' => [
+                'required',
+                'string',
+                'max:255',
+                // уникально в рамках модели, игнорируя текущую запись
+                Rule::unique('complectation', 'complectation_name')
+                    ->where('model_id', $request->input('model_id'))
+                    ->ignore($id),
+                'regex:/^[A-ZА-ЯЁ][A-Za-zА-Яа-яЁё0-9+-]*$/u',
+            ],
             'price'                      => ['required', 'integer'],
             'engine'                     => ['required', 'integer'],
             'track_fuel'                 => ['required', 'numeric'],
@@ -807,55 +1017,55 @@ class ProjectController extends Controller
             'audio_speakers'             => ['required', 'integer'],
             'usb'                        => ['required', 'integer'],
         ]);
-
-        $row = DB::table('complectation')->where('id', $id)->first();
-        if (!$row) {
-            return response()->json(['message' => 'complectation not found'], 404);
-        }
-
-        DB::table('complectation')->where('id', $id)->update([
-            'model_id'                   => $data['model_id'],
-            'complectation_name'         => $data['complectation_name'],
-            'price'                      => $data['price'],
-            'engine'                     => $data['engine'],
-            'track_fuel'                 => $data['track_fuel'],
-            'city_fuel'                  => $data['city_fuel'],
-            'transmission'               => $data['transmission'],
-            'brakes'                     => $data['brakes'],
-            'wheel_drive'                => $data['wheel_drive'],
-            'weight'                     => $data['weight'],
-            'headlights'                 => $data['headlights'],
-            'hatch'                      => $data['hatch'],
-            'tinting'                    => $data['tinting'],
-            'airbag'                     => $data['airbag'],
-            'heated_front_seats'         => $data['heated_front_seats'],
-            'heated_rear_seats'          => $data['heated_rear_seats'],
-            'salon'                      => $data['salon'],
-            'seats'                      => $data['seats'],
-            'conditions'                 => $data['conditions'],
-            'cruise_control'             => $data['cruise_control'],
-            'apple_carplay_android_auto' => $data['apple_carplay_android_auto'],
-            'audio_speakers'             => $data['audio_speakers'],
-            'usb'                        => $data['usb'],
-        ]);
-
-        $minPrice = DB::table('complectation')
-            ->where('model_id', $data['model_id'])
-            ->min('price');
-
-        DB::table('Models')
-            ->where('id', $data['model_id'])
-            ->update(['min_price' => $minPrice]);
-
-        $updated = DB::table('complectation')->where('id', $id)->first();
-
-        return response()->json($updated, 200);
-    } catch (\Throwable $e) {
-        \Log::error('complectationUpdate error: '.$e->getMessage(), [
-            'trace' => $e->getTraceAsString(),
-        ]);
-        return response()->json(['message' => 'Server error'], 500);
+    } catch (ValidationException $e) {
+        return response()->json([
+            'message' => 'Ошибка валидации',
+            'errors'  => $e->errors(),
+        ], 422);
     }
+
+    $row = DB::table('complectation')->where('id', $id)->first();
+    if (!$row) {
+        return response()->json(['message' => 'complectation not found'], 404);
+    }
+
+    DB::table('complectation')->where('id', $id)->update([
+        'model_id'                   => $data['model_id'],
+        'complectation_name'         => $data['complectation_name'],
+        'price'                      => $data['price'],
+        'engine'                     => $data['engine'],
+        'track_fuel'                 => $data['track_fuel'],
+        'city_fuel'                  => $data['city_fuel'],
+        'transmission'               => $data['transmission'],
+        'brakes'                     => $data['brakes'],
+        'wheel_drive'                => $data['wheel_drive'],
+        'weight'                     => $data['weight'],
+        'headlights'                 => $data['headlights'],
+        'hatch'                      => $data['hatch'],
+        'tinting'                    => $data['tinting'],
+        'airbag'                     => $data['airbag'],
+        'heated_front_seats'         => $data['heated_front_seats'],
+        'heated_rear_seats'          => $data['heated_rear_seats'],
+        'salon'                      => $data['salon'],
+        'seats'                      => $data['seats'],
+        'conditions'                 => $data['conditions'],
+        'cruise_control'             => $data['cruise_control'],
+        'apple_carplay_android_auto' => $data['apple_carplay_android_auto'],
+        'audio_speakers'             => $data['audio_speakers'],
+        'usb'                        => $data['usb'],
+    ]);
+
+    $minPrice = DB::table('complectation')
+        ->where('model_id', $data['model_id'])
+        ->min('price');
+
+    DB::table('models')
+        ->where('id', $data['model_id'])
+        ->update(['min_price' => $minPrice]);
+
+    $updated = DB::table('complectation')->where('id', $id)->first();
+
+    return response()->json($updated, 200);
 }
 
     public function complectationDel($id)
@@ -879,31 +1089,74 @@ class ProjectController extends Controller
     }
 
     public function storeClr(Request $request)
-        {
+    {
+        try {
             $data = $request->validate([
-                'color_name' => ['required', 'string', 'max:255'],
-                'color_code' => ['required', 'string', 'max:20'],
+                'color_name' => [
+                    'required',
+                    'string',
+                    'max:255',
+                    // уникальность имени цвета
+                    'unique:colors,color_name',
+                    // первая буква заглавная, без пробелов/дефисов в начале/конце
+                    'regex:/^[A-ZА-ЯЁ][A-Za-zА-Яа-яЁё0-9]*(?:[ -][A-Za-zА-Яа-яЁё0-9]+)*$/u',
+                ],
+                'color_code' => [
+                    'required',
+                    'string',
+                    'max:20',
+                    // уникальность HEX
+                    'unique:colors,color_code',
+                    // формат #RRGGBB
+                    'regex:/^#([0-9A-Fa-f]{6})$/',
+                ],
             ]);
-
-            $color = Colors::create($data);
-
-            // статус 201 — создано
-            return response()->json($color, 201);
+        } catch (ValidationException $e) {
+            // чтобы фронту было проще понять, что именно сломалось
+            return response()->json([
+                'message' => 'Ошибка валидации',
+                'errors'  => $e->errors(),
+            ], 422);
         }
+
+        $color = Colors::create($data);
+
+        return response()->json($color, 201);
+    }
 
     public function updateClr(Request $request, $id)
-        {
-            $color = Colors::findOrFail($id);
+    {
+        $color = Colors::findOrFail($id);
 
+        try {
             $data = $request->validate([
-                'color_name' => ['required', 'string', 'max:255'],
-                'color_code' => ['required', 'string', 'max:20'],
+                'color_name' => [
+                    'required',
+                    'string',
+                    'max:255',
+                    // уникальность с игнором текущей записи
+                    Rule::unique('colors', 'color_name')->ignore($color->id),
+                    'regex:/^[A-ZА-ЯЁ][A-Za-zА-Яа-яЁё0-9]*(?:[ -][A-Za-zА-Яа-яЁё0-9]+)*$/u',
+                ],
+                'color_code' => [
+                    'required',
+                    'string',
+                    'max:20',
+                    Rule::unique('colors', 'color_code')->ignore($color->id),
+                    'regex:/^#([0-9A-Fa-f]{6})$/',
+                ],
             ]);
-
-            $color->update($data);
-
-            return response()->json($color, 200);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Ошибка валидации',
+                'errors'  => $e->errors(),
+            ], 422);
         }
+
+        $color->update($data);
+
+        return response()->json($color, 200);
+    }
 
     public function destroyClr($id)
         {
@@ -930,21 +1183,31 @@ class ProjectController extends Controller
                 'logo'        => ['required', 'image', 'max:2048'],
             ]);
 
+            $name = trim($data['name']);
+
+            // Проверка дубля по имени (без учёта регистра)
+            $exists = DB::table('banks')
+                ->whereRaw('LOWER(name) = LOWER(?)', [$name])
+                ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'message' => 'Банк с таким названием уже существует',
+                    'code'    => 'BANK_ALREADY_EXISTS',
+                ], 409);
+            }
+
             $logoPath = null;
 
             if ($request->hasFile('logo')) {
                 $file = $request->file('logo');
                 $filename = time() . '_' . $file->getClientOriginalName();
-
-                // папка public/img/banks у тебя уже есть
                 $file->move(public_path('img/banks'), $filename);
-
                 $logoPath = '/img/banks/' . $filename;
             }
 
-            // ВАЖНО: никаких created_at / updated_at, только реальные поля таблицы
             $id = DB::table('banks')->insertGetId([
-                'name'        => $data['name'],
+                'name'        => $name,
                 'logo'        => $logoPath,
                 'deposit_min' => $data['deposit_min'],
                 'min_percent' => $data['min_percent'],
@@ -960,19 +1223,13 @@ class ProjectController extends Controller
             Log::error('Bank store error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
-            // На время отладки возвращаем текст ошибки, чтобы видеть её на фронте
-            return response()->json(['message' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Ошибка сохранения банка'], 500);
         }
     }
 
-    public function updateBank(Request $request, $id)
+    public function updateBank(Request $request, int $id)
     {
         try {
-            $bank = DB::table('banks')->where('id', $id)->first();
-            if (!$bank) {
-                return response()->json(['message' => 'Bank not found'], 404);
-            }
-
             $data = $request->validate([
                 'name'        => ['required', 'string', 'max:255'],
                 'deposit_min' => ['required', 'integer'],
@@ -980,11 +1237,31 @@ class ProjectController extends Controller
                 'max_percent' => ['required', 'integer'],
                 'min_month'   => ['required', 'integer'],
                 'max_month'   => ['required', 'integer'],
-                // логотип при редактировании делаем необязательным
-                'logo'        => ['sometimes', 'nullable', 'image', 'max:2048'],
+                'logo'        => ['nullable', 'image', 'max:2048'], // при редактировании логотип не обязателен
             ]);
 
-            $logoPath = $bank->logo;
+            $name = trim($data['name']);
+
+            // Проверка дубля: тот же name, но у ДРУГОГО id
+            $exists = DB::table('banks')
+                ->whereRaw('LOWER(name) = LOWER(?)', [$name])
+                ->where('id', '<>', $id)
+                ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'message' => 'Банк с таким названием уже существует',
+                    'code'    => 'BANK_ALREADY_EXISTS',
+                ], 409);
+            }
+
+            // Текущий банк
+            $bank = DB::table('banks')->where('id', $id)->first();
+            if (!$bank) {
+                return response()->json(['message' => 'Банк не найден'], 404);
+            }
+
+            $logoPath = $bank->logo; // по умолчанию оставляем старый логотип
 
             if ($request->hasFile('logo')) {
                 $file = $request->file('logo');
@@ -996,7 +1273,7 @@ class ProjectController extends Controller
             DB::table('banks')
                 ->where('id', $id)
                 ->update([
-                    'name'        => $data['name'],
+                    'name'        => $name,
                     'logo'        => $logoPath,
                     'deposit_min' => $data['deposit_min'],
                     'min_percent' => $data['min_percent'],
@@ -1012,7 +1289,7 @@ class ProjectController extends Controller
             Log::error('Bank update error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
-            return response()->json(['message' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Ошибка обновления банка'], 500);
         }
     }
    
@@ -1043,53 +1320,61 @@ class ProjectController extends Controller
     // добавить авто на продажу
 
     public function carStore(Request $request)
+
     {
-        // $user = Auth::user();
-            $validated = $request->validate([
-                'model_id'         => ['required', 'integer'],
-                'complectation_id' => ['required', 'integer'],
-                'color_id'         => ['required', 'integer'],
-                'vin'              => ['required', 'string', 'max:255'],
-                'dealer_id'        => ['required', 'integer'],
-                'price'            => ['required', 'integer'],
-                'img_1'            => ['required', 'image', 'max:5120'],
-                'img_2'            => ['nullable', 'image', 'max:5120'],
-                'img_3'            => ['nullable', 'image', 'max:5120'],
-                'img_4'            => ['nullable', 'image', 'max:5120'],
-                'img_5'            => ['nullable', 'image', 'max:5120'],
-            ]);
+        $validated = $request->validate([
+            'model_id'         => 'required|integer|exists:models,id',
+            'complectation_id' => 'required|integer|exists:complectation,id',
+            'color_id'         => 'required|integer|exists:colors,id',
+            'vin'              => 'required|string|size:17|unique:cars,vin',
+            'price'            => 'required|integer|min:1',
+            'img_1'            => 'required|image|max:5120',
+            'img_2'            => 'nullable|image|max:5120',
+            'img_3'            => 'nullable|image|max:5120',
+            'img_4'            => 'nullable|image|max:5120',
+            'img_5'            => 'nullable|image|max:5120',
+        ]);
 
-            foreach (['img_1', 'img_2', 'img_3', 'img_4', 'img_5'] as $field) {
-                if ($request->hasFile($field)) {
-                    $file = $request->file($field);
-                    $filename = uniqid() . '.' . $file->getClientOriginalExtension();
-                    // путь относительно public
-                    $file->move(public_path('img/cars'), $filename);
+        $car = new Cars();
 
-                    // в БД можно хранить либо 'img/cars/xxx.jpg', либо только имя
-                    $paths[$field] = '/img/cars/' . $filename;
-                } else {
-                    $paths[$field] = '';
-                }
-            }
+        $car->model_id         = $validated['model_id'];
+        $car->complectation_id = $validated['complectation_id'];
+        $car->color_id         = $validated['color_id'];
+        $car->dealer_id        = $request->dealer_id; // или auth()->id()
+        $car->vin              = $validated['vin'];
+        $car->price            = $validated['price'];
+        $car->status           = 0;
 
-            Cars::create([
-                'model_id'         => $validated['model_id'],
-                'complectation_id' => $validated['complectation_id'],
-                'color_id'         => $validated['color_id'],
-                'vin'              => $validated['vin'],
-                'dealer_id'        => $validated['dealer_id'],
-                'img_1'            => $paths['img_1'],
-                'img_2'            => $paths['img_2'],
-                'img_3'            => $paths['img_3'],
-                'img_4'            => $paths['img_4'],
-                'img_5'            => $paths['img_5'],
-                'price'            => $validated['price'],
-                'status'           => 0,
-            ]);
-
-            return response()->json(['message' => 'ok'], 201);
+        // img_1 обязательно
+        if ($request->hasFile('img_1')) {
+            $car->img_1 = $request->file('img_1')->store('cars', 'public');
         }
+
+        // Для опциональных — либо путь, либо ПУСТАЯ СТРОКА
+        $car->img_2 = $request->hasFile('img_2')
+            ? $request->file('img_2')->store('cars', 'public')
+            : '';
+
+        $car->img_3 = $request->hasFile('img_3')
+            ? $request->file('img_3')->store('cars', 'public')
+            : '';
+
+        $car->img_4 = $request->hasFile('img_4')
+            ? $request->file('img_4')->store('cars', 'public')
+            : '';
+
+        $car->img_5 = $request->hasFile('img_5')
+            ? $request->file('img_5')->store('cars', 'public')
+            : '';
+
+        $car->save();
+
+        return response()->json([
+            'message' => 'Автомобиль успешно создан',
+            'data'    => $car,
+        ], 201);
+    }
+    
 
     
     public function storeLg(Request $request, Dealers $dealer)

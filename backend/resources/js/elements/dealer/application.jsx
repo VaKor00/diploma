@@ -128,8 +128,8 @@ function Applications() {
 
         const vinMap = {};
         dealerCars.forEach((car) => {
-          if (car.VIN) {
-            vinMap[car.VIN] = car;
+          if (car.vin) {
+            vinMap[car.vin] = car;
           }
         });
         setCarsByVin(vinMap);
@@ -183,51 +183,64 @@ function Applications() {
     window.open(`/carinfo/${carId}`, '_blank', 'noopener,noreferrer');
   };
 
+  const getStatusText = (status) => {
+    switch (Number(status)) {
+      case 1:
+        return 'Ожидает подтверждения';
+      case 2:
+        return 'Подтверждено, ожидает приезда';
+      case 3:
+        return 'Авто на СТО';
+      case 4:
+        return 'Завершено';
+      default:
+        return 'Неизвестный статус';
+    }
+  };
+
   // Получаем подпись кнопки статуса по status_ts
   const getStatusButtonLabel = (status) => {
     if (status === 1) return 'Подтвердить';
     if (status === 2) return 'Прибыл на ТО';
     if (status === 3) return 'Завершить';
+    if (status === 4) return null; // или 'Завершено' и кнопку не показывать
     return null;
   };
+
 
   // Клик по кнопке статуса
   const handleStatusClick = async (service) => {
     const current = Number(service.status_ts);
 
-    // Переходы:
-    // 1 -> 2
-    // 2 -> 3
-    // 3 -> удалить (завершить запись)
-    if (current === 3) {
-      // Завершить = удалить запись
-      await handleDeleteService(service);
-      return;
-    }
+    // если уже 4 — ничего не делаем
+    if (current >= 4) return;
 
     let newStatus = current;
     if (current === 1) newStatus = 2;
     else if (current === 2) newStatus = 3;
+    else if (current === 3) newStatus = 4;
 
     setServicesSavingId(service.id);
     try {
+      const tokenTag = document.querySelector('meta[name="csrf-token"]');
+
       const res = await fetch(`/api/technical-service/${service.id}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          ...(tokenTag ? { 'X-CSRF-TOKEN': tokenTag.content } : {}),
         },
         body: JSON.stringify({ status_ts: newStatus }),
+        credentials: 'same-origin',
       });
 
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data.message || 'Ошибка смены статуса');
       }
 
-      const json = await res.json();
-
       setServices((prev) =>
-        prev.map((s) => (s.id === service.id ? json.service : s))
+        prev.map((s) => (s.id === service.id ? data.service : s))
       );
     } catch (err) {
       console.error(err);
@@ -378,7 +391,7 @@ function Applications() {
                   <td>{s.time_service}</td>
                   <td>{s.vin}</td>
                   <td>{s.client_id}</td>
-                  <td>{s.status_ts}</td>
+                  <td>{getStatusText(s.status_ts)}</td>
                   <td>
                     {/* Кнопка смены статуса */}
                     {label && (

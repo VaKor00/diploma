@@ -3,6 +3,15 @@ import React, { useEffect, useState } from 'react';
 const descst = { fontFamily: 'TT Supermolot Neue Trial Medium' };
 const tab = { fontSize: '20px', width: '100%' };
 
+const bankNameRegex =
+  /^[A-ZА-ЯЁ][A-Za-zА-Яа-яЁё0-9.&]*(?:[ -][A-Za-zА-Яа-яЁё0-9.&]+)*$/;
+
+// >>> хелпер для нормализации числовых значений
+const toNumber = (val) => {
+  const n = Number(val);
+  return Number.isNaN(n) ? 0 : n;
+};
+
 function EditBanks() {
   const [banks, setBanks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,12 +24,19 @@ function EditBanks() {
     deposit_min: 0,
     min_percent: 0,
     max_percent: 0,
-    min_month: 0,
-    max_month: 0,
+    min_month: 12,  // >>> по умолчанию 12
+    max_month: 12,
   });
   const [addLogoFile, setAddLogoFile] = useState(null);
   const [savingAdd, setSavingAdd] = useState(false);
   const [saveAddError, setSaveAddError] = useState(null);
+  const [addNameError, setAddNameError] = useState('');
+
+  // >>> ошибки числовых полей (добавление)
+  const [addNumberErrors, setAddNumberErrors] = useState({
+    percent: '',
+    month: '',
+  });
 
   // ----- Редактирование -----
   const [showEditModal, setShowEditModal] = useState(false);
@@ -29,13 +45,20 @@ function EditBanks() {
     deposit_min: 0,
     min_percent: 0,
     max_percent: 0,
-    min_month: 0,
-    max_month: 0,
+    min_month: 12,
+    max_month: 12,
   });
   const [editLogoFile, setEditLogoFile] = useState(null);
   const [editingBank, setEditingBank] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [saveEditError, setSaveEditError] = useState(null);
+  const [editNameError, setEditNameError] = useState('');
+
+  // >>> ошибки числовых полей (редактирование)
+  const [editNumberErrors, setEditNumberErrors] = useState({
+    percent: '',
+    month: '',
+  });
 
   // ----- Удаление -----
   const [bankToDelete, setBankToDelete] = useState(null);
@@ -70,11 +93,13 @@ function EditBanks() {
       deposit_min: 0,
       min_percent: 0,
       max_percent: 0,
-      min_month: 0,
-      max_month: 0,
+      min_month: 12, // >>> 12
+      max_month: 12,
     });
     setAddLogoFile(null);
     setSaveAddError(null);
+    setAddNameError('');
+    setAddNumberErrors({ percent: '', month: '' }); // >>>
     setShowAddModal(true);
   };
 
@@ -83,12 +108,63 @@ function EditBanks() {
     setShowAddModal(false);
   };
 
+  const validateAddNumbers = (nextForm) => {
+    const minP = toNumber(nextForm.min_percent);
+    const maxP = toNumber(nextForm.max_percent);
+    const minM = toNumber(nextForm.min_month);
+    const maxM = toNumber(nextForm.max_month);
+
+    const errors = { percent: '', month: '' };
+
+    if (minP && maxP && minP >= maxP) {
+      errors.percent = 'Минимальный процент должен быть меньше максимального';
+    }
+
+    // кратность 12 + сравнение
+    if (minM && minM % 12 !== 0) {
+      errors.month = 'Минимальное количество месяцев должно быть кратно 12';
+    } else if (maxM && maxM % 12 !== 0) {
+      errors.month = 'Максимальное количество месяцев должно быть кратно 12';
+    } else if (minM && maxM && minM >= maxM) {
+      errors.month =
+        'Минимальное количество месяцев должно быть меньше максимального';
+    }
+
+    setAddNumberErrors(errors);
+  };
+
   const handleAddFormChange = (e) => {
     const { name, value } = e.target;
-    setAddForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+
+    const nextForm = {
+      ...addForm,
+      [name]:
+        name === 'deposit_min' ||
+        name === 'min_percent' ||
+        name === 'max_percent' ||
+        name === 'min_month' ||
+        name === 'max_month'
+          ? value === '' ? '' : toNumber(value)
+          : value,
+    };
+
+    setAddForm(nextForm);
+
+    if (name === 'name') {
+      const val = value.trim();
+      if (!val) {
+        setAddNameError('Укажите название банка');
+      } else if (!bankNameRegex.test(val)) {
+        setAddNameError(
+          'Неверный формат. Первая буква заглавная, без пробелов/дефисов в начале и конце.',
+        );
+      } else {
+        setAddNameError('');
+      }
+    } else {
+      // >>> валидация числовых полей
+      validateAddNumbers(nextForm);
+    }
   };
 
   const handleAddLogoChange = (e) => {
@@ -102,12 +178,26 @@ function EditBanks() {
     setSaveAddError(null);
 
     try {
-      if (!addForm.name.trim()) {
+      const trimmedName = addForm.name.trim();
+
+      if (!trimmedName) {
         throw new Error('Укажите название банка');
       }
 
+      if (!bankNameRegex.test(trimmedName)) {
+        throw new Error(
+          'Неверный формат названия банка. Первая буква заглавная, без пробелов/дефисов в начале и конце.',
+        );
+      }
+
+      // >>> финальная проверка чисел перед отправкой
+      validateAddNumbers(addForm);
+      if (addNumberErrors.percent || addNumberErrors.month) {
+        throw new Error('Исправьте ошибки в числовых полях');
+      }
+
       const fd = new FormData();
-      fd.append('name', addForm.name);
+      fd.append('name', trimmedName);
       fd.append('deposit_min', addForm.deposit_min || 0);
       fd.append('min_percent', addForm.min_percent || 0);
       fd.append('max_percent', addForm.max_percent || 0);
@@ -121,20 +211,25 @@ function EditBanks() {
       const res = await fetch('/api/banks', {
         method: 'POST',
         body: fd,
-        });
+      });
 
-        let data;
-        try {
+      let data;
+      try {
         data = await res.json();
-        } catch {
+      } catch {
         data = {};
-        }
+      }
 
-        console.log('CREATE BANK RESPONSE:', res.status, data);
+      console.log('CREATE BANK RESPONSE:', res.status, data);
 
-        if (!res.ok) {
-        throw new Error(data.message || JSON.stringify(data) || 'Ошибка сохранения банка');
+      if (!res.ok) {
+        if (res.status === 409 || data.code === 'BANK_ALREADY_EXISTS') {
+          throw new Error('Банк с таким названием уже существует');
         }
+        throw new Error(
+          data.message || JSON.stringify(data) || 'Ошибка сохранения банка',
+        );
+      }
 
       setBanks((prev) => [...prev, data]);
       setShowAddModal(false);
@@ -156,11 +251,13 @@ function EditBanks() {
       deposit_min: bank.deposit_min || 0,
       min_percent: bank.min_percent || 0,
       max_percent: bank.max_percent || 0,
-      min_month: bank.min_month || 0,
-      max_month: bank.max_month || 0,
+      min_month: bank.min_month || 12,
+      max_month: bank.max_month || 12,
     });
     setEditLogoFile(null);
     setSaveEditError(null);
+    setEditNameError('');
+    setEditNumberErrors({ percent: '', month: '' }); // >>>
     setShowEditModal(true);
   };
 
@@ -170,12 +267,62 @@ function EditBanks() {
     setEditingBank(null);
   };
 
+  const validateEditNumbers = (nextForm) => {
+    const minP = toNumber(nextForm.min_percent);
+    const maxP = toNumber(nextForm.max_percent);
+    const minM = toNumber(nextForm.min_month);
+    const maxM = toNumber(nextForm.max_month);
+
+    const errors = { percent: '', month: '' };
+
+    if (minP && maxP && minP >= maxP) {
+      errors.percent = 'Минимальный процент должен быть меньше максимального';
+    }
+
+    if (minM && minM % 12 !== 0) {
+      errors.month = 'Минимальное количество месяцев должно быть кратно 12';
+    } else if (maxM && maxM % 12 !== 0) {
+      errors.month = 'Максимальное количество месяцев должно быть кратно 12';
+    } else if (minM && maxM && minM >= maxM) {
+      errors.month =
+        'Минимальное количество месяцев должно быть меньше максимального';
+    }
+
+    setEditNumberErrors(errors);
+  };
+
   const handleEditFormChange = (e) => {
     const { name, value } = e.target;
-    setEditForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+
+    const nextForm = {
+      ...editForm,
+      [name]:
+        name === 'deposit_min' ||
+        name === 'min_percent' ||
+        name === 'max_percent' ||
+        name === 'min_month' ||
+        name === 'max_month'
+          ? value === '' ? '' : toNumber(value)
+          : value,
+    };
+
+    setEditForm(nextForm);
+
+    if (name === 'name') {
+      const val = value.trim();
+      if (!val) {
+        setEditNameError('Укажите название банка');
+      } else if (!bankNameRegex.test(val)) {
+        setEditNameError(
+          'Неверный формат. Первая буква заглавная, без пробелов/дефисов в начале и конце.',
+        );
+      } else {
+        setEditNameError('');
+      }
+    } else {
+      // >>> валидация числовых полей
+      validateEditNumbers(nextForm);
+    }
   };
 
   const handleEditLogoChange = (e) => {
@@ -191,19 +338,32 @@ function EditBanks() {
     setSaveEditError(null);
 
     try {
-      if (!editForm.name.trim()) {
+      const trimmedName = editForm.name.trim();
+
+      if (!trimmedName) {
         throw new Error('Укажите название банка');
       }
 
+      if (!bankNameRegex.test(trimmedName)) {
+        throw new Error(
+          'Неверный формат названия банка. Первая буква заглавная, без пробелов/дефисов в начале и конце.',
+        );
+      }
+
+      // >>> финальная проверка чисел
+      validateEditNumbers(editForm);
+      if (editNumberErrors.percent || editNumberErrors.month) {
+        throw new Error('Исправьте ошибки в числовых полях');
+      }
+
       const fd = new FormData();
-      fd.append('name', editForm.name);
+      fd.append('name', trimmedName);
       fd.append('deposit_min', editForm.deposit_min || 0);
       fd.append('min_percent', editForm.min_percent || 0);
       fd.append('max_percent', editForm.max_percent || 0);
       fd.append('min_month', editForm.min_month || 0);
       fd.append('max_month', editForm.max_month || 0);
 
-      // логотип не обязателен при редактировании
       if (editLogoFile) {
         fd.append('logo', editLogoFile);
       }
@@ -215,6 +375,9 @@ function EditBanks() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (res.status === 409 || data.code === 'BANK_ALREADY_EXISTS') {
+          throw new Error('Банк с таким названием уже существует');
+        }
         throw new Error(data.message || 'Ошибка обновления банка');
       }
 
@@ -273,6 +436,20 @@ function EditBanks() {
       setDeleteSaving(false);
     }
   };
+
+  const isAddSubmitDisabled =
+    savingAdd ||
+    !!addNameError ||
+    !addForm.name.trim() ||
+    !!addNumberErrors.percent || // >>>
+    !!addNumberErrors.month;
+
+  const isEditSubmitDisabled =
+    savingEdit ||
+    !!editNameError ||
+    !editForm.name.trim() ||
+    !!editNumberErrors.percent || // >>>
+    !!editNumberErrors.month;
 
   return (
     <>
@@ -387,12 +564,19 @@ function EditBanks() {
                       <label className="form-label">Название банка</label>
                       <input
                         type="text"
-                        className="form-control"
+                        className={`form-control ${
+                          addNameError ? 'is-invalid' : ''
+                        }`}
                         name="name"
                         value={addForm.name}
                         onChange={handleAddFormChange}
                         required
                       />
+                      {addNameError && (
+                        <div className="invalid-feedback">
+                          {addNameError}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mb-3">
@@ -402,6 +586,7 @@ function EditBanks() {
                         className="form-control"
                         accept="image/*"
                         onChange={handleAddLogoChange}
+                        required
                       />
                       <div className="form-text">
                         Файл будет сохранён в папку img/banks
@@ -425,7 +610,9 @@ function EditBanks() {
                         <label className="form-label">Мин. процент</label>
                         <input
                           type="number"
-                          className="form-control"
+                          className={`form-control ${
+                            addNumberErrors.percent ? 'is-invalid' : ''
+                          }`}
                           name="min_percent"
                           value={addForm.min_percent}
                           onChange={handleAddFormChange}
@@ -436,12 +623,19 @@ function EditBanks() {
                         <label className="form-label">Макс. процент</label>
                         <input
                           type="number"
-                          className="form-control"
+                          className={`form-control ${
+                            addNumberErrors.percent ? 'is-invalid' : ''
+                          }`}
                           name="max_percent"
                           value={addForm.max_percent}
                           onChange={handleAddFormChange}
                           min="0"
                         />
+                        {addNumberErrors.percent && (
+                          <div className="invalid-feedback">
+                            {addNumberErrors.percent}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -450,23 +644,34 @@ function EditBanks() {
                         <label className="form-label">Мин. месяцев</label>
                         <input
                           type="number"
-                          className="form-control"
+                          className={`form-control ${
+                            addNumberErrors.month ? 'is-invalid' : ''
+                          }`}
                           name="min_month"
                           value={addForm.min_month}
                           onChange={handleAddFormChange}
-                          min="0"
+                          min="12"
+                          step="12" // >>> 12/24/36/…
                         />
                       </div>
                       <div className="col-md-4 mb-3">
                         <label className="form-label">Макс. месяцев</label>
                         <input
                           type="number"
-                          className="form-control"
+                          className={`form-control ${
+                            addNumberErrors.month ? 'is-invalid' : ''
+                          }`}
                           name="max_month"
                           value={addForm.max_month}
                           onChange={handleAddFormChange}
-                          min="0"
+                          min="12"
+                          step="12"
                         />
+                        {addNumberErrors.month && (
+                          <div className="invalid-feedback">
+                            {addNumberErrors.month}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -483,7 +688,7 @@ function EditBanks() {
                     <button
                       type="submit"
                       className="btn btn-primary"
-                      disabled={savingAdd}
+                      disabled={isAddSubmitDisabled}
                     >
                       {savingAdd ? 'Сохранение...' : 'Сохранить'}
                     </button>
@@ -527,12 +732,19 @@ function EditBanks() {
                       <label className="form-label">Название банка</label>
                       <input
                         type="text"
-                        className="form-control"
+                        className={`form-control ${
+                          editNameError ? 'is-invalid' : ''
+                        }`}
                         name="name"
                         value={editForm.name}
                         onChange={handleEditFormChange}
                         required
                       />
+                      {editNameError && (
+                        <div className="invalid-feedback">
+                          {editNameError}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mb-3">
@@ -574,7 +786,9 @@ function EditBanks() {
                         <label className="form-label">Мин. процент</label>
                         <input
                           type="number"
-                          className="form-control"
+                          className={`form-control ${
+                            editNumberErrors.percent ? 'is-invalid' : ''
+                          }`}
                           name="min_percent"
                           value={editForm.min_percent}
                           onChange={handleEditFormChange}
@@ -585,12 +799,19 @@ function EditBanks() {
                         <label className="form-label">Макс. процент</label>
                         <input
                           type="number"
-                          className="form-control"
+                          className={`form-control ${
+                            editNumberErrors.percent ? 'is-invalid' : ''
+                          }`}
                           name="max_percent"
                           value={editForm.max_percent}
                           onChange={handleEditFormChange}
                           min="0"
                         />
+                        {editNumberErrors.percent && (
+                          <div className="invalid-feedback">
+                            {editNumberErrors.percent}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -599,23 +820,34 @@ function EditBanks() {
                         <label className="form-label">Мин. месяцев</label>
                         <input
                           type="number"
-                          className="form-control"
+                          className={`form-control ${
+                            editNumberErrors.month ? 'is-invalid' : ''
+                          }`}
                           name="min_month"
                           value={editForm.min_month}
                           onChange={handleEditFormChange}
-                          min="0"
+                          min="12"
+                          step="12"
                         />
                       </div>
                       <div className="col-md-4 mb-3">
                         <label className="form-label">Макс. месяцев</label>
                         <input
                           type="number"
-                          className="form-control"
+                          className={`form-control ${
+                            editNumberErrors.month ? 'is-invalid' : ''
+                          }`}
                           name="max_month"
                           value={editForm.max_month}
                           onChange={handleEditFormChange}
-                          min="0"
+                          min="12"
+                          step="12"
                         />
+                        {editNumberErrors.month && (
+                          <div className="invalid-feedback">
+                            {editNumberErrors.month}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -632,7 +864,7 @@ function EditBanks() {
                     <button
                       type="submit"
                       className="btn btn-primary"
-                      disabled={savingEdit}
+                      disabled={isEditSubmitDisabled}
                     >
                       {savingEdit ? 'Сохранение...' : 'Сохранить'}
                     </button>

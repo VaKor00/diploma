@@ -13,10 +13,12 @@ class TechnicalServiceController extends Controller
      * Возвращает свободные временные слоты для ТО
      * GET /api/technical-service/slots?dealer_id=...&date_service=YYYY-MM-DD
      */
+    
+
     public function getAvailableSlots(Request $request)
     {
         $request->validate([
-            'dealer_id'    => 'required|integer|exists:Dealers,id',
+            'dealer_id'    => 'required|integer|exists:dealers,id',
             'date_service' => 'required|date_format:Y-m-d',
         ]);
 
@@ -67,7 +69,7 @@ class TechnicalServiceController extends Controller
         $user = $request->user(); // клиент
 
         $request->validate([
-            'dealer_id'    => 'required|integer|exists:Dealers,id',
+            'dealer_id'    => 'required|integer|exists:dealers,id',
             'date_service' => 'required|date_format:Y-m-d|after:today',
             'time_service' => 'required|date_format:H:i',
         ]);
@@ -104,20 +106,21 @@ class TechnicalServiceController extends Controller
     }
 
     public function getDealerServices($dealerId)
-    {
+        {
         $services = TechnicalService::where('dealer_id', $dealerId)
-            ->orderByDesc('date_service')
-            ->orderByDesc('time_service')
-            ->get([
-                'id',
-                'dealer_id',
-                'client_id',
-                'modelcar_id',
-                'vin',
-                'date_service',
-                'time_service',
-                'status_ts',
-            ]);
+        ->whereBetween('status_ts', [1, 3])          // <-- только статусы 1–3
+        ->orderByDesc('date_service')
+        ->orderByDesc('time_service')
+        ->get([
+            'id',
+            'dealer_id',
+            'client_id',
+            'modelcar_id',
+            'vin',
+            'date_service',
+            'time_service',
+            'status_ts',
+        ]);
 
         return response()->json($services);
     }

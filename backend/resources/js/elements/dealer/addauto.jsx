@@ -3,10 +3,9 @@ import { Head, usePage } from '@inertiajs/react';
 
 const buttons = { fontFamily: "TT Supermolot Neue Trial Medium", fontSize: "22px" };
 const descst  = { fontFamily: "TT Supermolot Neue Trial Medium" };
-const h1 = {fontFamily: "TT Supermolot Neue Trial Medium", fontSize: "40px"}
+const h1 = { fontFamily: "TT Supermolot Neue Trial Medium", fontSize: "40px" };
 
 function AddAuto() {
-
   const { props } = usePage();
   const dealerId = props.dealerId;
 
@@ -34,6 +33,18 @@ function AddAuto() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors]   = useState({});
   const [success, setSuccess] = useState('');
+
+  // локальная ошибка VIN (по регулярке на фронте)
+  const [vinError, setVinError] = useState('');
+
+  // --- Функция проверки VIN по регулярке ---
+  // VIN: 17 символов, латинские буквы (кроме I, O, Q) и цифры
+  const isValidVin = (vinRaw) => {
+    if (!vinRaw) return false;
+    const vin = vinRaw.toUpperCase().trim();
+    const vinRegex = /^[A-HJ-NPR-Z0-9]{17}$/;
+    return vinRegex.test(vin);
+  };
 
   // Загрузка моделей
   useEffect(() => {
@@ -70,6 +81,12 @@ function AddAuto() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    // если пользователь меняет VIN — сразу чистим ошибку
+    if (name === 'vin') {
+      setVinError('');
+    }
+
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
@@ -85,6 +102,7 @@ function AddAuto() {
     e.preventDefault();
     setErrors({});
     setSuccess('');
+    setVinError('');
     setLoading(true);
 
     try {
@@ -100,6 +118,13 @@ function AddAuto() {
         return;
       }
 
+      // проверяем VIN по регулярке
+      if (!isValidVin(form.vin)) {
+        setVinError('Введите корректный VIN: 17 символов, латинские буквы (кроме I, O, Q) и цифры.');
+        setLoading(false);
+        return;
+      }
+
       if (!images.img_1) {
         setErrors({ img_1: 'Минимум одно изображение обязательно (img_1).' });
         setLoading(false);
@@ -110,7 +135,8 @@ function AddAuto() {
       formData.append('model_id',         form.model_id);
       formData.append('complectation_id', form.complectation_id);
       formData.append('color_id',         form.color_id);
-      formData.append('vin',              form.vin);
+      // нормализуем VIN к верхнему регистру
+      formData.append('vin',              form.vin.toUpperCase().trim());
       formData.append('dealer_id',        dealerId);
       formData.append('price',            form.price);
       formData.append('status',           0);
@@ -132,6 +158,13 @@ function AddAuto() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
+
+        // errors.vin придёт от Laravel при дубликате или неверном формате
+        if (data.errors && data.errors.vin) {
+          // покажем под полем VIN
+          setVinError(data.errors.vin[0] || 'Ошибка в VIN.');
+        }
+
         setErrors(data.errors || { general: 'Ошибка при сохранении.' });
       } else {
         setSuccess('Автомобиль успешно добавлен.');
@@ -237,10 +270,18 @@ function AddAuto() {
           <input
             type="text"
             name="vin"
-            className="form-control"
+            className={`form-control ${vinError ? 'is-invalid' : ''}`}
             value={form.vin}
             onChange={handleChange}
           />
+          {vinError && (
+            <div className="invalid-feedback">{vinError}</div>
+          )}
+          {!vinError && errors.vin && (
+            <div className="text-danger">
+              {Array.isArray(errors.vin) ? errors.vin[0] : errors.vin}
+            </div>
+          )}
         </div>
 
         {/* Цена */}
@@ -315,7 +356,6 @@ function AddAuto() {
           </div>
         </div>
 
-        {/* dealer_id и статус просто сохраняем на бэке, здесь не показываем */}
         <button
           type="submit"
           className="btn btn-dark"

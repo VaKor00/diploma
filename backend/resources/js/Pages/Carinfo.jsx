@@ -481,11 +481,11 @@ function Carinfo() {
                           border: '1px solid #ccc',
                           verticalAlign: 'middle'
                         }}></span></h4>
-                    <h4 style={descst} className="text-dark">VIN: <span className="text-secondary">{maskVin(carData.VIN)}</span></h4>
+                    <h4 style={descst} className="text-dark">VIN: <span className="text-secondary">{maskVin(carData.vin)}</span></h4>
                     <br></br>
                     <p style={h1}>{numberWithSpaces(carData.price)} ₽</p>
                     <br></br>
-                    <ShowModal vin={carData.VIN} />
+                    <ShowModal vin={carData.vin} />
                   </div>
                 </div>
               </div>
@@ -514,11 +514,11 @@ function Carinfo() {
                     border: '1px solid #ccc',
                     verticalAlign: 'middle'
                   }}></span></h4>
-              <h4 style={descst} className="text-dark">VIN: <span className="text-secondary">{maskVin(carData.VIN)}</span></h4>
+              <h4 style={descst} className="text-dark">VIN: <span className="text-secondary">{maskVin(carData.vin)}</span></h4>
               <br></br>
               <p style={h1}>{numberWithSpaces(carData.price)} ₽</p>
               <br></br>
-                <ShowModal vin={carData.VIN} />
+                <ShowModal vin={carData.vin} />
             </div>
           </div>
         </div>

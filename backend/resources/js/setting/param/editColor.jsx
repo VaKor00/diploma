@@ -3,6 +3,16 @@ import React, { useEffect, useState } from 'react';
 const descst = { fontFamily: 'TT Supermolot Neue Trial Medium' };
 const tab = { fontSize: '20px', width: '100%' };
 
+// Регулярка для названия цвета:
+// - первая буква заглавная (латиница/кириллица)
+// - нельзя пробел/дефис в начале и в конце
+// - в середине можно буквы/цифры/пробелы/дефисы
+const colorNameRegex =
+  /^[A-ZА-ЯЁ][A-Za-zА-Яа-яЁё0-9]*(?:[ -][A-Za-zА-Яа-яЁё0-9]+)*$/;
+
+// Проверка HEX (#RRGGBB)
+const isValidHex = (value) => /^#([0-9A-Fa-f]{6})$/.test(value.trim());
+
 function EditColor() {
   const [colors, setColors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,6 +26,8 @@ function EditColor() {
   });
   const [savingAdd, setSavingAdd] = useState(false);
   const [saveAddError, setSaveAddError] = useState(null);
+  const [addNameError, setAddNameError] = useState('');
+  const [addHexError, setAddHexError] = useState('');
 
   // ----- Редактирование -----
   const [showEditModal, setShowEditModal] = useState(false);
@@ -26,6 +38,8 @@ function EditColor() {
   const [editingColor, setEditingColor] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [saveEditError, setSaveEditError] = useState(null);
+  const [editNameError, setEditNameError] = useState('');
+  const [editHexError, setEditHexError] = useState('');
 
   // ----- Удаление -----
   const [colorToDelete, setColorToDelete] = useState(null);
@@ -51,9 +65,6 @@ function EditColor() {
       });
   }, []);
 
-  // --- общая проверка HEX ---
-  const isValidHex = (value) => /^#([0-9A-Fa-f]{6})$/.test(value.trim());
-
   // =======================
   //       ДОБАВЛЕНИЕ
   // =======================
@@ -63,6 +74,8 @@ function EditColor() {
       color_code: '#FFFFFF',
     });
     setSaveAddError(null);
+    setAddNameError('');
+    setAddHexError('');
     setShowAddModal(true);
   };
 
@@ -77,13 +90,30 @@ function EditColor() {
       ...prev,
       [name]: value,
     }));
-  };
 
-  const handleAddPresetClick = (hex) => {
-    setAddForm((prev) => ({
-      ...prev,
-      color_code: hex,
-    }));
+    if (name === 'color_name') {
+      const val = value.trim();
+      if (!val) {
+        setAddNameError('Заполните название цвета');
+      } else if (!colorNameRegex.test(val)) {
+        setAddNameError(
+          'Неверный формат. Первая буква заглавная, без пробелов/дефисов в начале и конце.'
+        );
+      } else {
+        setAddNameError('');
+      }
+    }
+
+    if (name === 'color_code') {
+      const val = value.trim();
+      if (!val) {
+        setAddHexError('Выберите/введите цвет');
+      } else if (!isValidHex(val)) {
+        setAddHexError('Некорректный HEX-код цвета (формат #RRGGBB)');
+      } else {
+        setAddHexError('');
+      }
+    }
   };
 
   const handleSubmitAdd = async (e) => {
@@ -92,19 +122,44 @@ function EditColor() {
     setSaveAddError(null);
 
     try {
-      if (!addForm.color_name.trim()) {
+      const name = addForm.color_name.trim();
+      const code = addForm.color_code.trim();
+
+      if (!name) {
         throw new Error('Заполните название цвета');
       }
-      if (!addForm.color_code.trim()) {
+      if (!colorNameRegex.test(name)) {
+        throw new Error(
+          'Неверный формат названия. Первая буква заглавная, без пробелов/дефисов в начале и конце.'
+        );
+      }
+
+      if (!code) {
         throw new Error('Выберите/введите цвет');
       }
-      if (!isValidHex(addForm.color_code)) {
+      if (!isValidHex(code)) {
         throw new Error('Некорректный HEX-код цвета (формат #RRGGBB)');
       }
 
+      // Локальная проверка дублей по имени (без учёта регистра)
+      const nameExists = colors.some(
+        (c) => c.color_name.toLowerCase() === name.toLowerCase()
+      );
+      if (nameExists) {
+        throw new Error('Цвет с таким названием уже существует');
+      }
+
+      // Локальная проверка дублей по коду (без учёта регистра)
+      const codeExists = colors.some(
+        (c) => c.color_code.toLowerCase() === code.toLowerCase()
+      );
+      if (codeExists) {
+        throw new Error('Цвет с таким HEX-кодом уже существует');
+      }
+
       const fd = new FormData();
-      fd.append('color_name', addForm.color_name);
-      fd.append('color_code', addForm.color_code);
+      fd.append('color_name', name);
+      fd.append('color_code', code);
 
       const res = await fetch('/api/colors', {
         method: 'POST',
@@ -112,7 +167,17 @@ function EditColor() {
       });
 
       const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
+        // Обработка Laravel-валидации (422)
+        if (res.status === 422 && data.errors) {
+          if (data.errors.color_name?.length) {
+            throw new Error(data.errors.color_name[0]);
+          }
+          if (data.errors.color_code?.length) {
+            throw new Error(data.errors.color_code[0]);
+          }
+        }
         throw new Error(data.message || 'Ошибка сохранения цвета');
       }
 
@@ -137,6 +202,8 @@ function EditColor() {
       color_code: color.color_code || '#FFFFFF',
     });
     setSaveEditError(null);
+    setEditNameError('');
+    setEditHexError('');
     setShowEditModal(true);
   };
 
@@ -152,13 +219,30 @@ function EditColor() {
       ...prev,
       [name]: value,
     }));
-  };
 
-  const handleEditPresetClick = (hex) => {
-    setEditForm((prev) => ({
-      ...prev,
-      color_code: hex,
-    }));
+    if (name === 'color_name') {
+      const val = value.trim();
+      if (!val) {
+        setEditNameError('Заполните название цвета');
+      } else if (!colorNameRegex.test(val)) {
+        setEditNameError(
+          'Неверный формат. Первая буква заглавная, без пробелов/дефисов в начале и конце.'
+        );
+      } else {
+        setEditNameError('');
+      }
+    }
+
+    if (name === 'color_code') {
+      const val = value.trim();
+      if (!val) {
+        setEditHexError('Выберите/введите цвет');
+      } else if (!isValidHex(val)) {
+        setEditHexError('Некорректный HEX-код цвета (формат #RRGGBB)');
+      } else {
+        setEditHexError('');
+      }
+    }
   };
 
   const handleSubmitEdit = async (e) => {
@@ -169,20 +253,48 @@ function EditColor() {
     setSaveEditError(null);
 
     try {
-      if (!editForm.color_name.trim()) {
+      const name = editForm.color_name.trim();
+      const code = editForm.color_code.trim();
+
+      if (!name) {
         throw new Error('Заполните название цвета');
       }
-      if (!editForm.color_code.trim()) {
+      if (!colorNameRegex.test(name)) {
+        throw new Error(
+          'Неверный формат названия. Первая буква заглавная, без пробелов/дефисов в начале и конце.'
+        );
+      }
+
+      if (!code) {
         throw new Error('Выберите/введите цвет');
       }
-      if (!isValidHex(editForm.color_code)) {
+      if (!isValidHex(code)) {
         throw new Error('Некорректный HEX-код цвета (формат #RRGGBB)');
       }
 
-      // отправляем JSON через PUT
+      // Локальная проверка дублей по имени (исключаем текущий id)
+      const nameExists = colors.some(
+        (c) =>
+          c.id !== editingColor.id &&
+          c.color_name.toLowerCase() === name.toLowerCase()
+      );
+      if (nameExists) {
+        throw new Error('Цвет с таким названием уже существует');
+      }
+
+      // Локальная проверка дублей по коду (исключаем текущий id)
+      const codeExists = colors.some(
+        (c) =>
+          c.id !== editingColor.id &&
+          c.color_code.toLowerCase() === code.toLowerCase()
+      );
+      if (codeExists) {
+        throw new Error('Цвет с таким HEX-кодом уже существует');
+      }
+
       const payload = {
-        color_name: editForm.color_name,
-        color_code: editForm.color_code,
+        color_name: name,
+        color_code: code,
       };
 
       const res = await fetch(`/api/colors/${editingColor.id}`, {
@@ -195,12 +307,19 @@ function EditColor() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (res.status === 422 && data.errors) {
+          if (data.errors.color_name?.length) {
+            throw new Error(data.errors.color_name[0]);
+          }
+          if (data.errors.color_code?.length) {
+            throw new Error(data.errors.color_code[0]);
+          }
+        }
         throw new Error(data.message || 'Ошибка обновления цвета');
       }
 
       const updated = data;
 
-      // обновляем локальный список
       setColors((prev) =>
         prev.map((c) => (c.id === updated.id ? updated : c))
       );
@@ -256,6 +375,20 @@ function EditColor() {
       setDeleteSaving(false);
     }
   };
+
+  const isAddSubmitDisabled =
+    savingAdd ||
+    !!addNameError ||
+    !!addHexError ||
+    !addForm.color_name.trim() ||
+    !addForm.color_code.trim();
+
+  const isEditSubmitDisabled =
+    savingEdit ||
+    !!editNameError ||
+    !!editHexError ||
+    !editForm.color_name.trim() ||
+    !editForm.color_code.trim();
 
   return (
     <>
@@ -364,12 +497,19 @@ function EditColor() {
                       <label className="form-label">Название цвета</label>
                       <input
                         type="text"
-                        className="form-control"
+                        className={`form-control ${
+                          addNameError ? 'is-invalid' : ''
+                        }`}
                         name="color_name"
                         value={addForm.color_name}
                         onChange={handleAddFormChange}
                         required
                       />
+                      {addNameError && (
+                        <div className="invalid-feedback">
+                          {addNameError}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mb-3">
@@ -381,7 +521,9 @@ function EditColor() {
                         <span className="input-group-text">HEX</span>
                         <input
                           type="text"
-                          className="form-control"
+                          className={`form-control ${
+                            addHexError ? 'is-invalid' : ''
+                          }`}
                           name="color_code"
                           value={addForm.color_code}
                           onChange={handleAddFormChange}
@@ -401,7 +543,11 @@ function EditColor() {
                           style={{ maxWidth: 60 }}
                         />
                       </div>
-
+                      {addHexError && (
+                        <div className="invalid-feedback d-block">
+                          {addHexError}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -417,7 +563,7 @@ function EditColor() {
                     <button
                       type="submit"
                       className="btn btn-primary"
-                      disabled={savingAdd}
+                      disabled={isAddSubmitDisabled}
                     >
                       {savingAdd ? 'Сохранение...' : 'Сохранить'}
                     </button>
@@ -461,12 +607,19 @@ function EditColor() {
                       <label className="form-label">Название цвета</label>
                       <input
                         type="text"
-                        className="form-control"
+                        className={`form-control ${
+                          editNameError ? 'is-invalid' : ''
+                        }`}
                         name="color_name"
                         value={editForm.color_name}
                         onChange={handleEditFormChange}
                         required
                       />
+                      {editNameError && (
+                        <div className="invalid-feedback">
+                          {editNameError}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mb-3">
@@ -478,7 +631,9 @@ function EditColor() {
                         <span className="input-group-text">HEX</span>
                         <input
                           type="text"
-                          className="form-control"
+                          className={`form-control ${
+                            editHexError ? 'is-invalid' : ''
+                          }`}
                           name="color_code"
                           value={editForm.color_code}
                           onChange={handleEditFormChange}
@@ -498,6 +653,11 @@ function EditColor() {
                           style={{ maxWidth: 60 }}
                         />
                       </div>
+                      {editHexError && (
+                        <div className="invalid-feedback d-block">
+                          {editHexError}
+                        </div>
+                      )}
 
                       <div className="mt-2 d-flex align-items-center">
                         <span className="me-2">Текущий выбор:</span>
@@ -527,7 +687,7 @@ function EditColor() {
                     <button
                       type="submit"
                       className="btn btn-primary"
-                      disabled={savingEdit}
+                      disabled={isEditSubmitDisabled}
                     >
                       {savingEdit ? 'Сохранение...' : 'Сохранить'}
                     </button>
