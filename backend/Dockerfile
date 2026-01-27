@@ -27,7 +27,21 @@ RUN docker-php-ext-install \
 # 3. Composer
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
-# 4. Установка PHP-зависимостей
+# 4. Копируем package.json и package-lock.json (если есть)
+COPY package*.json ./
+
+# 5. Устанавливаем npm-зависимости
+RUN npm install
+
+# 6. Копируем фронтенд-код (если нужен)
+COPY . .
+
+# 7. Собираем фронтенд (пример для Vite)
+RUN if [ -f "vite.config.js" ]; then \
+      npm run build; \
+    fi
+
+# 8. Установка PHP-зависимостей (если нужно)
 # COPY composer.json composer.lock* ./
 # RUN composer install \
 #     --no-dev \
@@ -36,18 +50,10 @@ COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 #     --prefer-dist \
 #     --no-scripts
 
-# 5. Копируем весь проект
-COPY . .
-
-# 5.1 Сборка фронтенда Vite
-# RUN npm install \
-#  && npm run build
-
-# 6. Копируем entrypoint-скрипт
+# 9. Копируем entrypoint-скрипт
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Важно: оставляем root, чтобы мог менять права при старте
 USER root
 
 ENTRYPOINT ["docker-entrypoint.sh"]
