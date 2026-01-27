@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./backend:/var/www/html          # код и public монтируются внутрь
-      # - /var/www/html/vendor
+      - /var/www/html/node_modules
     environment:
       - DB_CONNECTION=mysql
       - DB_HOST=db
