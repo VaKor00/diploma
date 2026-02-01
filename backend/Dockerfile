@@ -2,7 +2,8 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
-RUN npm install --production
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm install --omit=dev
 
 # Этап 2: Сборка фронтенда
 FROM node:22-alpine AS builder
@@ -15,6 +16,7 @@ RUN npm run build
 FROM php:8.4-fpm-alpine
 WORKDIR /var/www/html
 COPY --from=builder /app/build ./public
+
 # ... остальные шаги для PHP
 
 WORKDIR /var/www/html
