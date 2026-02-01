@@ -1,4 +1,21 @@
+# Этап 1: Установка npm‑зависимостей
+FROM node:22-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --production
+
+# Этап 2: Сборка фронтенда
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY . .
+COPY --from=deps /app/node_modules ./node_modules
+RUN npm run build
+
+# Этап 3: Финальный образ с PHP
 FROM php:8.4-fpm-alpine
+WORKDIR /var/www/html
+COPY --from=builder /app/build ./public
+# ... остальные шаги для PHP
 
 WORKDIR /var/www/html
 
@@ -31,17 +48,29 @@ COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 COPY package*.json ./
 
 # 5. Устанавливаем npm-зависимости
-RUN npm install
+# Важно: очищаем кэш и используем --production для минимизации образа
+RUN npm config set cache /var/www/html/.npm-cache --global && \
+    npm install --production && \
+    rm -rf /var/www/html/.npm-cache
 
-# 6. Копируем фронтенд-код (если нужен)
+# 6. Копируем фронтенд-код (после установки зависимостей!)
 COPY . .
 
-# 7. Собираем фронтенд (пример для Vite)
-RUN if [ -f "vite.config.js" ]; then \
+# 7. Собираем фронтенд (для React/Vite)
+# Проверяем наличие конфигурационных файлов перед сборкой
+RUN if [ -f "vite.config.js" ] || [ -f "webpack.config.js" ]; then \
       npm run build; \
+    else \
+      echo "No build config found, skipping frontend build"; \
     fi
 
-# 8. Установка PHP-зависимостей (если нужно)
+# 8. Очищаем ненужные файлы после сборки
+# Удаляем dev-зависимости и временные файлы
+RUN if [ -d "node_modules" ]; then \
+      rm -rf node_modules/.cache; \
+    fi
+
+# 9. Установка PHP-зависимостей (если нужно)
 # COPY composer.json composer.lock* ./
 # RUN composer install \
 #     --no-dev \
@@ -50,7 +79,7 @@ RUN if [ -f "vite.config.js" ]; then \
 #     --prefer-dist \
 #     --no-scripts
 
-# 9. Копируем entrypoint-скрипт
+# 10. Копируем entrypoint-скрипт
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
