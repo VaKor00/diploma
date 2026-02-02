@@ -28,13 +28,13 @@ RUN docker-php-ext-install \
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
 # 4. Установка PHP-зависимостей
-# COPY composer.json composer.lock* ./
-# RUN composer install \
-#     --no-dev \
-#     --optimize-autoloader \
-#     --no-interaction \
-#     --prefer-dist \
-#     --no-scripts
+COPY composer.json composer.lock* ./
+RUN composer install \
+    --no-dev \
+    --optimize-autoloader \
+    --no-interaction \
+    --prefer-dist \
+    --no-scripts
 
 # 5. Копируем весь проект
 COPY . .
